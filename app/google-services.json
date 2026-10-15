@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "313053109006",
+    "project_id": "absensi-karyawan-2b712",
+    "storage_bucket": "absensi-karyawan-2b712.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:313053109006:android:397aac63082ca9e264155f",
+        "android_client_info": {
+          "package_name": "com.dink2v.absencontrol"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "313053109006-po97jmq7fmf7jjmf5n6hdn20ig6olv66.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB652YDpVURYIv47MHM-2Wdh8o9-HGuBKQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "313053109006-po97jmq7fmf7jjmf5n6hdn20ig6olv66.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:313053109006:android:03399440de71a34664155f",
+        "android_client_info": {
+          "package_name": "com.example.absensikaryawan"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "313053109006-po97jmq7fmf7jjmf5n6hdn20ig6olv66.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB652YDpVURYIv47MHM-2Wdh8o9-HGuBKQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "313053109006-po97jmq7fmf7jjmf5n6hdn20ig6olv66.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
