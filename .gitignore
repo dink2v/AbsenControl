@@ -1,0 +1,17 @@
+# Gradle / Android
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local Firebase configuration (add only after registering the Android app)
+app/google-services.json
+
+# Local secrets
+.env
+.env.*
+!.env.example
