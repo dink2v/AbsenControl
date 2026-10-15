@@ -69,7 +69,7 @@ export default function HomePage() {
         setRole(null);
         setAccess("denied");
         setError("Tidak bisa memverifikasi hak akses. Periksa koneksi dan aturan Firestore.");
-        await signOut(auth);
+        await signOut(currentAuth);
       }
     });
   }, []);
