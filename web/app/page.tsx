@@ -43,7 +43,8 @@ export default function HomePage() {
       setAccess("setup");
       return;
     }
-    return onAuthStateChanged(auth, async (currentUser) => {
+    const currentAuth = auth;
+    return onAuthStateChanged(currentAuth, async (currentUser) => {
       setUser(currentUser);
       setError("");
       if (!currentUser || !db) {
@@ -62,7 +63,7 @@ export default function HomePage() {
         } else {
           setRole(null);
           setAccess("denied");
-          await signOut(auth);
+          await signOut(currentAuth);
         }
       } catch {
         setRole(null);
