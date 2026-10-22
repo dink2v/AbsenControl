@@ -265,28 +265,7 @@ export default function HomePage() {
   );
   const managerIdentityFound = role !== "Manager" || Boolean(managerEmployee);
 
-  const normalizedPosition = (employee: EmployeeRecord) =>
-    `${employee.position} ${employee.role}`.toLowerCase();
-  const employeeTokens = (employee: EmployeeRecord) =>
-    [employee.id, employee.uid, employee.email, employee.name].filter(Boolean).map((value) => value.toLowerCase());
-  const directManagerOf = (employee: EmployeeRecord) =>
-    employees.find((candidate) => candidate.id !== employee.id &&
-      employee.managerRefs.some((ref) => employeeTokens(candidate).includes(ref)));
-  const supervisorOf = (employee: EmployeeRecord) => {
-    let parent = directManagerOf(employee);
-    const visited = new Set<string>();
-    while (parent && !visited.has(parent.id)) {
-      if (normalizedPosition(parent).includes("supervisor")) return parent;
-      visited.add(parent.id);
-      parent = directManagerOf(parent);
-    }
-    return normalizedPosition(employee).includes("supervisor") ? employee : undefined;
-  };
-  const organizationEmployees = role === "Manager" && managerEmployee
-    ? employees.filter((employee) => employee.id === managerEmployee.id || visibleEmployees.some((child) => child.id === employee.id))
-    : visibleEmployees;
-  const organizationDepartments = Array.from(new Set(organizationEmployees.map((employee) => employee.department || "Belum ditentukan"))).sort((a, b) => a.localeCompare(b, "id"));
-  const organizationSupervisors = Array.from(new Map(organizationEmployees.map((employee) => supervisorOf(employee)).filter((employee): employee is EmployeeRecord => Boolean(employee)).map((employee) => [employee.id, employee])).values()).sort((a, b) => a.name.localeCompare(b.name, "id"));
+
 
   const visibleEmployees = role !== "Manager"
     ? employees
@@ -315,6 +294,29 @@ export default function HomePage() {
         }
         return employees.filter((employee) => included.has(employee.id) && employee.id !== managerEmployee.id);
       })();
+
+  const normalizedPosition = (employee: EmployeeRecord) =>
+    `${employee.position} ${employee.role}`.toLowerCase();
+  const employeeTokens = (employee: EmployeeRecord) =>
+    [employee.id, employee.uid, employee.email, employee.name].filter(Boolean).map((value) => value.toLowerCase());
+  const directManagerOf = (employee: EmployeeRecord) =>
+    employees.find((candidate) => candidate.id !== employee.id &&
+      employee.managerRefs.some((ref) => employeeTokens(candidate).includes(ref)));
+  const supervisorOf = (employee: EmployeeRecord) => {
+    let parent = directManagerOf(employee);
+    const visited = new Set<string>();
+    while (parent && !visited.has(parent.id)) {
+      if (normalizedPosition(parent).includes("supervisor")) return parent;
+      visited.add(parent.id);
+      parent = directManagerOf(parent);
+    }
+    return normalizedPosition(employee).includes("supervisor") ? employee : undefined;
+  };
+  const organizationEmployees = role === "Manager" && managerEmployee
+    ? employees.filter((employee) => employee.id === managerEmployee.id || visibleEmployees.some((child) => child.id === employee.id))
+    : visibleEmployees;
+  const organizationDepartments = Array.from(new Set(organizationEmployees.map((employee) => employee.department || "Belum ditentukan"))).sort((a, b) => a.localeCompare(b, "id"));
+  const organizationSupervisors = Array.from(new Map(organizationEmployees.map((employee) => supervisorOf(employee)).filter((employee): employee is EmployeeRecord => Boolean(employee)).map((employee) => [employee.id, employee])).values()).sort((a, b) => a.name.localeCompare(b.name, "id"));
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
