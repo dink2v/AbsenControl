@@ -57,12 +57,14 @@ export default function HomePage() {
     const currentAuth = auth;
     return onAuthStateChanged(currentAuth, async (currentUser) => {
       setUser(currentUser);
-      setError("");
       if (!currentUser || !db) {
+        // Keep the access-check error visible after signOut; otherwise the
+        // auth-state callback immediately clears the reason login was rejected.
         setRole(null);
         setAccess("signed-out");
         return;
       }
+      setError("");
       setAccess("checking");
       try {
         // Avoid leaving the full-screen access checker spinning forever if Firestore
@@ -95,11 +97,15 @@ export default function HomePage() {
           setAccess("denied");
           await signOut(currentAuth);
         }
-      } catch {
+      } catch (cause: unknown) {
         setRole(null);
         setAccessProfile({});
         setAccess("denied");
-        setError("Tidak bisa memverifikasi hak akses. Periksa koneksi dan aturan Firestore.");
+        setError(
+          cause instanceof Error && cause.message === "ACCESS_CHECK_TIMEOUT"
+            ? "Pemeriksaan akses ke Firestore melewati 12 detik. Cek koneksi dan aturan Firestore untuk dokumen controlAdmins."
+            : "Tidak bisa memverifikasi hak akses. Pastikan dokumen controlAdmins dengan ID UID akun ini ada, active bernilai true, dan role bernilai Admin, Manager, atau Owner; cek juga aturan Firestore.",
+        );
         await signOut(currentAuth);
       }
     });
