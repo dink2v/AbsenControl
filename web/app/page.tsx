@@ -54,6 +54,7 @@ export default function HomePage() {
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestSearch, setRequestSearch] = useState("");
   const [requestStatus, setRequestStatus] = useState("Semua");
+  const [requestReloadKey, setRequestReloadKey] = useState(0);
 
   useEffect(() => {
     if (!auth) {
@@ -313,7 +314,7 @@ export default function HomePage() {
     };
     void loadRequests();
     return () => { cancelled = true; };
-  }, [access, user, activeSection]);
+  }, [access, user, activeSection, requestReloadKey]);
 
   const profileRefs = [
     user?.uid,
@@ -569,7 +570,7 @@ export default function HomePage() {
             <input aria-label="Cari pengajuan" placeholder="Cari nama, jenis, alasan, email, ID…" value={requestSearch} onChange={(event) => setRequestSearch(event.target.value)} />
             <select aria-label="Filter status pengajuan" value={requestStatus} onChange={(event) => setRequestStatus(event.target.value)}><option>Semua</option>{Array.from(new Set(requestRows.map((item) => item.status))).sort((a,b) => a.localeCompare(b,"id")).map((status) => <option key={status}>{status}</option>)}</select>
             <button type="button" className="logout-button" onClick={() => { setRequestSearch(""); setRequestStatus("Semua"); }}>Reset filter</button>
-            <button type="button" className="primary-button request-refresh" onClick={() => setActiveSection("Dashboard")} title="Kembali lalu buka Pengajuan untuk memuat ulang">Muat ulang</button>
+            <button type="button" className="primary-button request-refresh" onClick={() => setRequestReloadKey((key) => key + 1)} disabled={requestsLoading} title="Muat ulang data dari Firestore">{requestsLoading ? "Memuat…" : "Muat ulang"}</button>
           </div>
           {requestsLoading ? <p className="employee-state">Memuat semua pengajuan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table request-table"><thead><tr><th>Pemohon</th><th>Jenis</th><th>Tanggal pengajuan</th><th>Periode</th><th>Alasan / keterangan</th><th>Status</th><th>ID dokumen</th></tr></thead><tbody>
             {requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td><strong>{item.employee}</strong>{item.email && <small>{item.email}</small>}</td><td>{item.type}</td><td>{item.submittedAt || "—"}</td><td>{item.startDate || item.endDate ? <>{item.startDate || "—"}{item.endDate ? ` s.d. ${item.endDate}` : ""}</> : "—"}</td><td className="request-reason">{item.reason || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
