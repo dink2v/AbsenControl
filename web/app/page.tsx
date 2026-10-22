@@ -290,9 +290,14 @@ export default function HomePage() {
     event.preventDefault();
     if (!auth) return;
     setBusy(true);
-    setError("");
+    setError("Menghubungkan ke Firebase Authentication…");
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await Promise.race([
+        signInWithEmailAndPassword(auth, email.trim(), password),
+        new Promise<never>((_, reject) =>
+          window.setTimeout(() => reject(new Error("LOGIN_TIMEOUT")), 15000),
+        ),
+      ]);
     } catch (cause: unknown) {
       const code =
         typeof cause === "object" && cause !== null && "code" in cause
@@ -313,8 +318,16 @@ export default function HomePage() {
         setError("Koneksi internet bermasalah. Periksa koneksi lalu coba lagi.");
       } else if (code === "auth/user-disabled") {
         setError("Akun ini dinonaktifkan. Hubungi Admin.");
+      } else if (code === "auth/operation-not-allowed") {
+        setError("Metode login Email/Kata Sandi belum diaktifkan di Firebase Authentication.");
+      } else if (code === "auth/invalid-api-key") {
+        setError("Konfigurasi Firebase API key tidak valid. Periksa konfigurasi aplikasi Web Firebase.");
+      } else if (code === "auth/unauthorized-domain") {
+        setError("Domain web ini belum diizinkan di Firebase Authentication. Tambahkan dink2v.github.io ke Authorized domains.");
+      } else if (cause instanceof Error && cause.message === "LOGIN_TIMEOUT") {
+        setError("Firebase tidak merespons setelah 15 detik. Periksa koneksi internet dan konfigurasi Authentication, lalu coba lagi.");
       } else {
-        setError("Login belum berhasil. Periksa koneksi dan data akun, lalu coba lagi.");
+        setError("Login belum berhasil. Periksa koneksi dan konfigurasi Firebase Authentication, lalu coba lagi.");
       }
     } finally {
       setBusy(false);
