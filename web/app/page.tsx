@@ -65,7 +65,17 @@ export default function HomePage() {
       }
       setAccess("checking");
       try {
-        const adminDoc = await getDoc(doc(db, "controlAdmins", currentUser.uid));
+        // Avoid leaving the full-screen access checker spinning forever if Firestore
+        // cannot complete the access-profile read (for example, network/rules issues).
+        const adminDoc = await Promise.race([
+          getDoc(doc(db, "controlAdmins", currentUser.uid)),
+          new Promise<never>((_, reject) =>
+            window.setTimeout(
+              () => reject(new Error("ACCESS_CHECK_TIMEOUT")),
+              12000,
+            ),
+          ),
+        ]);
         const data = adminDoc.data();
         // Only these three roles may access the web admin panel.
         // Normalize case so "MANAGER" and "Manager" are treated consistently.
