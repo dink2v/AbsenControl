@@ -124,3 +124,9 @@ h1,h2,h3,h4,p{margin-top:0}
 .employee-status{display:inline-block;background:#e7f8f0;color:#16845e;padding:4px 8px;border-radius:20px;font-size:9px;font-weight:700}
 .employee-state{padding:22px 12px;text-align:center;color:#7c879b;font-size:12px;line-height:1.7}
 @media(max-width:700px){.employees-panel{margin-top:8px;padding:13px}.employee-toolbar{align-items:stretch;flex-direction:column}.employee-toolbar .logout-button{margin:0;height:38px}.employee-table th,.employee-table td{padding:10px}}
+
+
+.attendance-toolbar{align-items:center;flex-wrap:wrap}
+.attendance-date-label{display:flex;align-items:center;gap:8px;color:#7c879b;font-size:10px;font-weight:700;white-space:nowrap}
+.attendance-date-label input{height:40px;border:1px solid var(--line);border-radius:9px;padding:0 9px;color:var(--ink);font:inherit;font-weight:500;background:white}
+@media(max-width:700px){.attendance-toolbar{align-items:stretch}.attendance-date-label{justify-content:space-between}.attendance-date-label input{flex:1;min-width:0}.attendance-toolbar .logout-button{margin:0}}
