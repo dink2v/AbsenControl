@@ -444,3 +444,27 @@ button{transition:background-color .16s ease,border-color .16s ease,color .16s e
  .request-table{min-width:900px}
 }
 @media(prefers-reduced-motion:reduce){button{transition:none}}
+
+
+/* Forest Ink — workspace hierarchy refinements */
+.sidebar-workspace{margin:0 10px 30px;padding:13px 12px;border:1px solid #3a473b;border-radius:8px;background:#273328;display:flex;flex-direction:column;gap:5px}
+.workspace-label{font-size:9px;letter-spacing:.16em;color:#9cac96;font-weight:700}
+.workspace-name{font-size:11px;font-weight:600;color:#eef1e8}
+.sidebar-bottom{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.connection-label{font-size:8px;letter-spacing:.08em;color:#a9c2a0;border:1px solid #4a6047;border-radius:4px;padding:3px 5px}
+.version{margin-left:auto}
+.page-heading{min-width:0}
+.page-heading .eyebrow span{padding:0 5px;color:#b0b4a9}
+.page-description{font-size:11px;color:#777d71;margin-top:5px;line-height:1.5}
+.welcome-row{gap:20px}
+.welcome-kicker{font-size:9px;letter-spacing:.15em;font-weight:700;color:#71816b}
+.welcome-row h2{margin-top:7px}
+.date-chip{display:flex;flex-direction:column;gap:4px;min-width:150px}
+.date-chip-label{font-size:8px;letter-spacing:.14em;color:#858a7f;font-weight:700}
+.date-chip strong{font-size:11px;font-weight:600;color:#424a3f}
+@media(max-width:700px){
+ .sidebar-workspace{display:none}
+ .page-description{max-width:220px;font-size:10px}
+ .welcome-row{display:flex;align-items:flex-start;flex-direction:column;gap:13px}
+ .date-chip{min-width:0;margin-top:0}
+}
