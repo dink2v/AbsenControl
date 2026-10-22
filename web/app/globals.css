@@ -614,3 +614,121 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .summary-card { border-radius: 14px; }
   .content-card { border-radius: 16px; }
 }
+
+
+/* Pengajuan UX — review queue clarity and mobile scanning */
+.requests-panel { display: flex; flex-direction: column; gap: 20px; }
+.requests-panel > .section-heading { align-items: flex-start; margin-bottom: 0; }
+.requests-panel > .section-heading p { max-width: 660px; line-height: 1.65; }
+.request-summary { gap: 12px; margin: 0; }
+.request-summary article {
+  position: relative;
+  overflow: hidden;
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 15px;
+  background: #fbfaf6;
+  border: 1px solid #e3e2d9;
+  transition: border-color .18s ease, transform .18s ease, background .18s ease;
+}
+.request-summary article::after {
+  content: "";
+  position: absolute;
+  right: -18px;
+  bottom: -30px;
+  width: 82px;
+  height: 82px;
+  border: 1px solid rgba(63,91,69,.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 10px rgba(63,91,69,.025), 0 0 0 22px rgba(63,91,69,.02);
+  pointer-events: none;
+}
+.request-summary article:nth-child(2) { background: #f4f5ed; border-color: #dce3d3; }
+.request-summary article:nth-child(3) { background: #f2f6ef; border-color: #dce7d8; }
+.request-summary article:nth-child(4) { background: #faf3ee; border-color: #eddfd4; }
+.request-summary article span { font-size: 12px; font-weight: 600; letter-spacing: .015em; color: #667064; }
+.request-summary article strong { font-size: clamp(24px, 2.4vw, 30px); line-height: 1; letter-spacing: -.055em; color: #202820; }
+.request-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 210px) auto auto;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e3e2d9;
+  border-radius: 15px;
+  background: #f4f3ed;
+}
+.request-toolbar input, .request-toolbar select {
+  min-width: 0;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #dcded4;
+  border-radius: 10px;
+  background: #fffefa;
+}
+.request-toolbar input { padding-inline: 13px; }
+.request-toolbar input::placeholder { color: #858a80; }
+.request-toolbar button { min-height: 42px; white-space: nowrap; }
+.request-refresh { box-shadow: 0 3px 8px rgba(32,40,32,.1); }
+.request-table { min-width: 940px; border-collapse: separate; border-spacing: 0; }
+.request-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 13px;
+  padding-bottom: 13px;
+  background: #eff1e8;
+  color: #4d604d;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+}
+.request-table tbody tr { transition: background .15s ease; }
+.request-table tbody tr:hover { background: #f5f7f0; }
+.request-table td { padding-top: 15px; padding-bottom: 15px; line-height: 1.5; }
+.request-table td:first-child strong { color: #202820; }
+.request-table td small { max-width: 190px; }
+.request-reason { min-width: 180px; max-width: 290px; color: #62685e; }
+.requests-panel .employee-table-wrap {
+  max-height: min(62vh, 680px);
+  overflow: auto;
+  border: 1px solid #e3e2d9;
+  border-radius: 13px;
+}
+.requests-panel .employee-state {
+  border: 1px dashed #d2d8ca;
+  border-radius: 14px;
+  padding: 24px 18px;
+  background: #fafaf6;
+  color: #616a5d;
+  line-height: 1.65;
+}
+.requests-panel .small-note {
+  margin: 0;
+  padding: 13px 15px;
+  border-left: 3px solid #a9b99f;
+  border-radius: 0 10px 10px 0;
+  background: #f3f4ed;
+  color: #656d60;
+  line-height: 1.65;
+}
+@media (max-width: 900px) {
+  .request-toolbar { grid-template-columns: minmax(0, 1fr) minmax(140px, .7fr); }
+  .request-toolbar input { grid-column: 1 / -1; }
+  .request-toolbar button { width: 100%; }
+}
+@media (max-width: 560px) {
+  .requests-panel { gap: 15px; }
+  .requests-panel > .section-heading { gap: 10px; flex-direction: column; }
+  .request-summary { gap: 8px; }
+  .request-summary article { min-height: 78px; padding: 12px; border-radius: 12px; gap: 9px; }
+  .request-summary article span { font-size: 11px; }
+  .request-summary article strong { font-size: 23px; }
+  .request-toolbar { grid-template-columns: minmax(0, 1fr); padding: 10px; gap: 8px; }
+  .request-toolbar input { grid-column: auto; }
+  .requests-panel .employee-table-wrap { max-height: 58vh; }
+  .requests-panel .small-note { font-size: 12px; }
+}
