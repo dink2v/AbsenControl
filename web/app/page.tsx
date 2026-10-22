@@ -501,23 +501,35 @@ export default function HomePage() {
     <main className="dashboard-layout">
       <aside className="sidebar">
         <div className="brand-lockup"><div className="brand-mark">AC</div><span>ABSEN<span className="brand-light">CONTROL</span></span></div>
+        <div className="sidebar-workspace"><span className="workspace-label">WORKSPACE</span><span className="workspace-name">Manajemen Kehadiran</span></div>
         <p className="nav-caption">MENU UTAMA</p>
         <nav className="nav-list" aria-label="Menu utama">
-          {menuItems.map((item, index) => (
-            <button className={activeSection === item.title ? "nav-item active" : "nav-item"} key={item.title} type="button" onClick={() => { setActiveSection(item.title); setError(""); }}>
-              <span className="nav-icon">{item.icon}</span><span>{item.title}</span>{index === 0 && <span className="active-indicator" />}
+          {menuItems.map((item) => (
+            <button className={activeSection === item.title ? "nav-item active" : "nav-item"} key={item.title} type="button" aria-current={activeSection === item.title ? "page" : undefined} onClick={() => { setActiveSection(item.title); setError(""); }}>
+              <span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.title}</span>
             </button>
           ))}
         </nav>
-        <div className="sidebar-bottom"><div className="online-indicator" /> Firebase connected <span className="version">v0.1</span></div>
+        <div className="sidebar-bottom"><div className="online-indicator" /><span>Firebase</span><span className="connection-label">TERHUBUNG</span><span className="version">v0.1</span></div>
       </aside>
       <section className="dashboard-main">
         <header className="topbar">
-          <div><p className="eyebrow">RUANG KERJA</p><h1>{activeSection}</h1></div>
-          <div className="account-area"><div className="avatar">{(user.email?.[0] || "A").toUpperCase()}</div><div className="account-copy"><strong>{user.email}</strong><span>{role}</span></div><button className="logout-button" onClick={handleLogout} type="button">Keluar</button></div>
+          <div className="page-heading">
+            <p className="eyebrow">ABSEN CONTROL <span>/</span> RUANG KERJA</p>
+            <h1>{activeSection}</h1>
+            <p className="page-description">{menuItems.find((item) => item.title === activeSection)?.description || "Pengelolaan kehadiran dan operasional"}</p>
+          </div>
+          <div className="account-area">
+            <div className="avatar">{(user.email?.[0] || "A").toUpperCase()}</div>
+            <div className="account-copy"><strong>{user.displayName || user.email}</strong><span>{role} · Akun aktif</span></div>
+            <button className="logout-button" onClick={handleLogout} type="button">Keluar</button>
+          </div>
         </header>
         {error && <div className="inline-notice" role="status">{error}<button type="button" onClick={() => setError("")} aria-label="Tutup pesan">×</button></div>}
-        {activeSection === "Dashboard" && <div className="welcome-row"><div><h2>Selamat datang 👋</h2><p>Berikut ruang kerja ABSEN CONTROL untuk hari ini.</p></div><div className="date-chip">{new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date())}</div></div>}
+        {activeSection === "Dashboard" && <div className="welcome-row">
+          <div><span className="welcome-kicker">RINGKASAN HARI INI</span><h2>Selamat datang kembali</h2><p>Pantau kehadiran dan tindak lanjut operasional dari satu tempat.</p></div>
+          <div className="date-chip"><span className="date-chip-label">HARI INI</span><strong>{new Intl.DateTimeFormat("id-ID", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }).format(new Date())}</strong></div>
+        </div>}
         {activeSection === "Struktur Organisasi" ? <section className="content-card employees-panel organization-panel">
           <div className="section-heading"><div><h3>Struktur Organisasi</h3><p>Hubungan atasan, tim, dan bawahan dari data koleksi <code>users</code>.</p></div><span className="module-count">{organizationEmployees.length} orang</span></div>
           <div className="organization-summary">
