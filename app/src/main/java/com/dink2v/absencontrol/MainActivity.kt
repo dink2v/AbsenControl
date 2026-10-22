@@ -92,7 +92,8 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
         db.collection("controlAdmins").document(uid).get()
             .addOnSuccessListener { document ->
                 isLoading = false
-                val allowed = document.exists() && document.getBoolean("active") == true
+                val role = document.getString("role")?.trim()?.lowercase()
+                val allowed = document.exists() && document.getBoolean("active") == true && role in setOf("admin", "owner", "manager")
                 if (allowed) {
                     isAdmin = true
                     status = "Akses administrator terverifikasi."
@@ -310,6 +311,7 @@ private fun DashboardScreen(
                 MenuTile("👥", "Data Karyawan", "Lihat dan kelola daftar karyawan") { onSelectTab("Karyawan") }
                 MenuTile("🕘", "Riwayat Absensi", "Pantau catatan kehadiran") { onSelectTab("Absensi") }
                 MenuTile("📄", "Pengajuan", "Tinjau izin dan pengajuan karyawan") { onSelectTab("Pengajuan") }
+                MenuTile("⚙️", "Pengaturan", "Pengaturan aplikasi dan akses administrator") { onSelectTab("Pengaturan") }
             } else {
                 Text(selectedTab, color = Navy, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
@@ -318,6 +320,7 @@ private fun DashboardScreen(
                         "Karyawan" -> "Daftar karyawan akan ditampilkan dari koleksi users."
                         "Absensi" -> "Riwayat kehadiran akan ditampilkan dari koleksi attendance."
                         "Pengajuan" -> "Pengajuan karyawan akan ditampilkan dari koleksi pengajuan."
+                        "Pengaturan" -> "Kelola preferensi aplikasi dan informasi akses administrator."
                         else -> "Pengaturan administrator."
                     },
                     color = Muted,
@@ -340,7 +343,7 @@ private fun DashboardScreen(
             modifier = Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            listOf("Beranda", "Karyawan", "Absensi", "Pengajuan").forEach { item ->
+            listOf("Beranda", "Karyawan", "Absensi", "Pengajuan", "Pengaturan").forEach { item ->
                 Column(
                     modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                         .clickable { onSelectTab(item) }.padding(vertical = 8.dp),
@@ -351,7 +354,8 @@ private fun DashboardScreen(
                             "Beranda" -> "⌂"
                             "Karyawan" -> "♙"
                             "Absensi" -> "◷"
-                            else -> "▤"
+                            "Pengajuan" -> "▤"
+                            else -> "⚙"
                         },
                         color = if (selectedTab == item) Blue else Muted,
                         fontSize = 20.sp,
