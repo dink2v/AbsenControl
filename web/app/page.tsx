@@ -13,6 +13,7 @@ import { auth, db, firebaseConfigured } from "@/lib/firebase";
 type Role = "Manager" | "Owner" | "Admin";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
 type EmployeeRecord = { id: string; uid: string; name: string; email: string; department: string; position: string; role: string; status: string; managerRefs: string[]; managerName: string };
+type RequestRecord = { id: string; employee: string; email: string; type: string; status: string; submittedAt: string; startDate: string; endDate: string; reason: string; raw: Record<string, unknown> };
 
 const roleDescriptions: Record<Role, string> = {
   Manager: "Pemantauan tim dan pengajuan sesuai wewenang",
@@ -49,6 +50,10 @@ export default function HomePage() {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSearch, setAttendanceSearch] = useState("");
   const [attendanceDate, setAttendanceDate] = useState(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
+  const [requestRows, setRequestRows] = useState<RequestRecord[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestSearch, setRequestSearch] = useState("");
+  const [requestStatus, setRequestStatus] = useState("Semua");
 
   useEffect(() => {
     if (!auth) {
@@ -253,6 +258,60 @@ export default function HomePage() {
       }
     };
     void loadAttendance();
+    return () => { cancelled = true; };
+  }, [access, user, activeSection]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Pengajuan") return;
+    const currentDb = db;
+    let cancelled = false;
+    const loadRequests = async () => {
+      setRequestsLoading(true);
+      setError("");
+      try {
+        const snapshot = await getDocs(collection(currentDb, "pengajuan"));
+        const readText = (value: unknown): string => {
+          if (value == null) return "";
+          if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+          if (typeof value === "object" && value !== null && "toDate" in value && typeof (value as {toDate?: unknown}).toDate === "function") {
+            return (value as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+          }
+          if (Array.isArray(value)) return value.map(readText).filter(Boolean).join(", ");
+          try { return JSON.stringify(value); } catch { return String(value); }
+        };
+        const pick = (data: Record<string, unknown>, keys: string[]) => {
+          for (const key of keys) {
+            const value = data[key];
+            if (value !== undefined && value !== null && String(value).trim()) return readText(value).trim();
+          }
+          return "";
+        };
+        const rows = snapshot.docs.map((item) => {
+          const data = item.data() as Record<string, unknown>;
+          return {
+            id: item.id,
+            employee: pick(data, ["nama", "namaKaryawan", "namaLengkap", "name", "fullName", "karyawan", "pemohon", "userName", "displayName", "email"]) || "Pemohon tidak tercantum",
+            email: pick(data, ["email", "emailKaryawan", "userEmail", "pemohonEmail"]),
+            type: pick(data, ["jenis", "jenisPengajuan", "tipe", "type", "kategori", "tipePengajuan", "keperluan"]) || "Pengajuan umum",
+            status: pick(data, ["status", "statusPengajuan", "approvalStatus", "state"]) || "Belum ada status",
+            submittedAt: pick(data, ["createdAt", "created_at", "tanggalPengajuan", "waktuPengajuan", "timestamp", "dibuatPada", "tanggal", "date"]),
+            startDate: pick(data, ["tanggalMulai", "mulai", "tanggalAwal", "startDate", "dariTanggal", "tanggalIzin"]),
+            endDate: pick(data, ["tanggalSelesai", "selesai", "tanggalAkhir", "endDate", "sampaiTanggal"]),
+            reason: pick(data, ["alasan", "keterangan", "deskripsi", "reason", "catatan", "detail", "pesan"]),
+            raw: data,
+          } satisfies RequestRecord;
+        }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt, "id"));
+        if (!cancelled) setRequestRows(rows);
+      } catch {
+        if (!cancelled) {
+          setRequestRows([]);
+          setError("Data Pengajuan belum bisa dibaca. Periksa koneksi dan Firestore Security Rules agar akun ini diizinkan membaca koleksi pengajuan.");
+        }
+      } finally {
+        if (!cancelled) setRequestsLoading(false);
+      }
+    };
+    void loadRequests();
     return () => { cancelled = true; };
   }, [access, user, activeSection]);
 
@@ -498,6 +557,27 @@ export default function HomePage() {
           {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
           </div>}
           <p className="small-note">Modul ini hanya membaca data absensi. Fitur koreksi atau perubahan catatan akan dibuat setelah aturan dan struktur data dikonfirmasi.</p>
+        </section> : activeSection === "Pengajuan" ? <section className="content-card employees-panel requests-panel">
+          <div className="section-heading"><div><h3>Semua Pengajuan</h3><p>Data dibaca langsung dari seluruh dokumen koleksi <code>pengajuan</code> di Firestore.</p></div><span className="module-count">{requestRows.length} pengajuan</span></div>
+          <div className="request-summary">
+            <article><span>Total data</span><strong>{requestRows.length}</strong></article>
+            <article><span>Menunggu</span><strong>{requestRows.filter((item) => /pending|menunggu|proses|review|diajukan/i.test(item.status)).length}</strong></article>
+            <article><span>Disetujui</span><strong>{requestRows.filter((item) => /setuju|disetujui|approved|diterima/i.test(item.status)).length}</strong></article>
+            <article><span>Ditolak</span><strong>{requestRows.filter((item) => /tolak|ditolak|rejected/i.test(item.status)).length}</strong></article>
+          </div>
+          <div className="employee-toolbar request-toolbar">
+            <input aria-label="Cari pengajuan" placeholder="Cari nama, jenis, alasan, email, ID…" value={requestSearch} onChange={(event) => setRequestSearch(event.target.value)} />
+            <select aria-label="Filter status pengajuan" value={requestStatus} onChange={(event) => setRequestStatus(event.target.value)}><option>Semua</option>{Array.from(new Set(requestRows.map((item) => item.status))).sort((a,b) => a.localeCompare(b,"id")).map((status) => <option key={status}>{status}</option>)}</select>
+            <button type="button" className="logout-button" onClick={() => { setRequestSearch(""); setRequestStatus("Semua"); }}>Reset filter</button>
+            <button type="button" className="primary-button request-refresh" onClick={() => setActiveSection("Dashboard")} title="Kembali lalu buka Pengajuan untuk memuat ulang">Muat ulang</button>
+          </div>
+          {requestsLoading ? <p className="employee-state">Memuat semua pengajuan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table request-table"><thead><tr><th>Pemohon</th><th>Jenis</th><th>Tanggal pengajuan</th><th>Periode</th><th>Alasan / keterangan</th><th>Status</th><th>ID dokumen</th></tr></thead><tbody>
+            {requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td><strong>{item.employee}</strong>{item.email && <small>{item.email}</small>}</td><td>{item.type}</td><td>{item.submittedAt || "—"}</td><td>{item.startDate || item.endDate ? <>{item.startDate || "—"}{item.endDate ? ` s.d. ${item.endDate}` : ""}</> : "—"}</td><td className="request-reason">{item.reason || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+          </tbody></table>
+          {requestRows.length === 0 && <p className="employee-state">Koleksi <code>pengajuan</code> belum memiliki dokumen atau belum ada data yang berhasil dibaca.</p>}
+          {requestRows.length > 0 && requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada pengajuan yang cocok dengan pencarian atau filter status.</p>}
+          </div>}
+          <p className="small-note">Mode pemeriksaan: seluruh dokumen ditampilkan tanpa mengubah atau menghapus data. Kolom umum dipetakan dari beberapa nama field; pencarian juga mencakup isi dokumen lainnya. Tombol persetujuan/penolakan belum diaktifkan agar data status tidak berubah sebelum alur persetujuan dan field database dipastikan.</p>
         </section> : activeSection === "Dashboard" ? <>
         <section className="summary-grid" aria-label="Ringkasan">
           <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
