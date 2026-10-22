@@ -12,6 +12,7 @@ import { auth, db, firebaseConfigured } from "@/lib/firebase";
 
 type Role = "HRD" | "Manager" | "Owner" | "Admin";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
+type EmployeeRecord = { id: string; name: string; email: string; department: string; role: string; status: string };
 
 const roleDescriptions: Record<Role, string> = {
   HRD: "Pengelolaan karyawan, absensi, dan pengajuan",
@@ -39,6 +40,10 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [stats, setStats] = useState({ employees: "—", present: "—", pending: "—", review: "—" });
   const [statsLoading, setStatsLoading] = useState(false);
+  const [activeSection, setActiveSection] = useState("Dashboard");
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   useEffect(() => {
     if (!auth) {
@@ -123,6 +128,47 @@ export default function HomePage() {
     void loadDashboardStats();
     return () => { cancelled = true; };
   }, [access, user]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Data Karyawan") return;
+    const currentDb = db;
+    let cancelled = false;
+    const loadEmployees = async () => {
+      setEmployeesLoading(true);
+      setError("");
+      try {
+        const snapshot = await getDocs(collection(currentDb, "users"));
+        const rows = snapshot.docs.map((item) => {
+          const data = item.data();
+          const pick = (...keys: string[]) => {
+            for (const key of keys) {
+              const value = data[key];
+              if (typeof value === "string" && value.trim()) return value.trim();
+            }
+            return "";
+          };
+          return {
+            id: item.id,
+            name: pick("nama", "name", "namaLengkap", "fullName", "displayName") || "Tanpa nama",
+            email: pick("email", "emailAddress"),
+            department: pick("departemen", "department", "divisi", "division", "jabatan", "position"),
+            role: pick("role", "peran") || "Karyawan",
+            status: pick("status", "statusAkun", "accountStatus") || "Aktif",
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name, "id"));
+        if (!cancelled) setEmployees(rows);
+      } catch {
+        if (!cancelled) {
+          setEmployees([]);
+          setError("Data karyawan belum bisa dibaca. Pastikan akun admin diizinkan membaca koleksi users pada Firestore Security Rules.");
+        }
+      } finally {
+        if (!cancelled) setEmployeesLoading(false);
+      }
+    };
+    void loadEmployees();
+    return () => { cancelled = true; };
+  }, [access, user, activeSection]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -222,7 +268,7 @@ export default function HomePage() {
         <p className="nav-caption">MENU UTAMA</p>
         <nav className="nav-list" aria-label="Menu utama">
           {menuItems.map((item, index) => (
-            <button className={index === 0 ? "nav-item active" : "nav-item"} key={item.title} type="button" onClick={() => index !== 0 && setError("Modul ini akan diaktifkan bertahap setelah struktur data disepakati.")}>
+            <button className={activeSection === item.title ? "nav-item active" : "nav-item"} key={item.title} type="button" onClick={() => { setActiveSection(item.title); setError(""); }}>
               <span className="nav-icon">{item.icon}</span><span>{item.title}</span>{index === 0 && <span className="active-indicator" />}
             </button>
           ))}
@@ -231,11 +277,22 @@ export default function HomePage() {
       </aside>
       <section className="dashboard-main">
         <header className="topbar">
-          <div><p className="eyebrow">OVERVIEW</p><h1>Dashboard</h1></div>
+          <div><p className="eyebrow">RUANG KERJA</p><h1>{activeSection}</h1></div>
           <div className="account-area"><div className="avatar">{(user.email?.[0] || "A").toUpperCase()}</div><div className="account-copy"><strong>{user.email}</strong><span>{role}</span></div><button className="logout-button" onClick={handleLogout} type="button">Keluar</button></div>
         </header>
         {error && <div className="inline-notice" role="status">{error}<button type="button" onClick={() => setError("")} aria-label="Tutup pesan">×</button></div>}
-        <div className="welcome-row"><div><h2>Selamat datang 👋</h2><p>Berikut ruang kerja ABSEN CONTROL untuk hari ini.</p></div><div className="date-chip">{new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date())}</div></div>
+        {activeSection === "Dashboard" && <div className="welcome-row"><div><h2>Selamat datang 👋</h2><p>Berikut ruang kerja ABSEN CONTROL untuk hari ini.</p></div><div className="date-chip">{new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date())}</div></div>}
+        {activeSection === "Data Karyawan" ? <section className="content-card employees-panel">
+          <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><span className="module-count">{employees.length} karyawan</span></div>
+          <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
+          {employeesLoading ? <p className="employee-state">Memuat data karyawan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Nama</th><th>Email</th><th>Jabatan / Divisi</th><th>Role</th><th>Status</th></tr></thead><tbody>
+            {employees.filter((employee) => [employee.name, employee.email, employee.department, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{employee.department || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td></tr>)}
+          </tbody></table>
+          {employees.length === 0 && !employeesLoading && <p className="employee-state">Belum ada dokumen karyawan pada koleksi <code>users</code>.</p>}
+          {employees.length > 0 && employees.filter((employee) => [employee.name, employee.email, employee.department, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada karyawan yang cocok dengan pencarian.</p>}
+          </div>}
+          <p className="small-note">Tampilan ini hanya membaca data. Tambah, edit, dan hapus karyawan akan dibuat setelah format field di koleksi users dikonfirmasi.</p>
+        </section> : activeSection === "Dashboard" ? <>
         <section className="summary-grid" aria-label="Ringkasan">
           <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
           <article className="summary-card"><div className="summary-top"><span>Hadir Hari Ini</span><span className="summary-icon green">✓</span></div><strong>{stats.present}</strong><p>{statsLoading ? "Memuat data absensi…" : "Kehadiran pada hari ini"}</p></article>
@@ -246,6 +303,7 @@ export default function HomePage() {
           <article className="content-card main-card"><div className="section-heading"><div><h3>Modul pengelolaan</h3><p>Ruang kerja utama sesuai hak akses akun.</p></div><span className="module-count">06 modul</span></div><div className="module-grid">{menuItems.slice(1).map((item) => <button className="module-tile" key={item.title} type="button" onClick={() => setError(item.title + " belum terhubung ke data nyata. Kita bangun setelah struktur data dikonfirmasi.")}><span className="module-icon">{item.icon}</span><strong>{item.title}</strong><span>{item.description}</span><span className="tile-arrow">↗</span></button>)}</div></article>
           <aside className="content-card access-card"><div className="section-heading"><div><h3>Akses akun</h3><p>Role yang aktif saat ini.</p></div></div><div className="role-emblem">♙</div><span className="role-pill">{role}</span><h4>{role === "Admin" ? "Administrator sistem" : role}</h4><p className="muted">{roleDescriptions[role]}</p><div className="access-divider" /><div className="access-status"><span className="secure-dot" /> Akun terverifikasi</div><p className="small-note">Hak akses diverifikasi melalui dokumen controlAdmins di Firestore.</p></aside>
         </section>
+        </> : <section className="content-card employees-panel"><div className="section-heading"><div><h3>{activeSection}</h3><p>Modul ini belum dihubungkan ke koleksi data terkait.</p></div></div><p className="employee-state">Kita lanjutkan setelah struktur data modul ini dikonfirmasi. Bagian Data Karyawan sudah membaca koleksi <code>users</code>.</p></section>}
         <footer className="dashboard-footer">ABSEN CONTROL <span>·</span> Panel internal manajemen absensi</footer>
       </section>
     </main>
