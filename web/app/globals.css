@@ -765,3 +765,109 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     margin: 0;
   }
 }
+
+
+/* Minimal, lightweight motion across the web app */
+@keyframes ac-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ac-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ac-soft-pop {
+  from { opacity: 0; transform: scale(.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Keep entry motion short and subtle; no animation libraries required. */
+.login-brand-panel,
+.login-form,
+.mobile-brand,
+.setup-card {
+  animation: ac-fade-up .32s ease-out both;
+}
+.dashboard-main {
+  animation: ac-fade-in .24s ease-out both;
+}
+.topbar,
+.welcome-row,
+.summary-grid,
+.content-grid,
+.employees-panel,
+.reports-panel,
+.requests-panel,
+.settings-panel,
+.organization-panel {
+  animation: ac-fade-up .28s ease-out both;
+}
+.summary-card,
+.content-card,
+.module-tile,
+.settings-option,
+.settings-account-card,
+.organization-department {
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease, transform .16s ease;
+}
+.summary-card:hover,
+.content-card:hover {
+  border-color: #dbe2ed;
+}
+.summary-card:hover {
+  transform: translateY(-1px);
+}
+.module-tile:active,
+.primary-button:active,
+.logout-button:active,
+.nav-item:active {
+  transform: translateY(1px);
+}
+.primary-button,
+.logout-button,
+.nav-item,
+input,
+select {
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, color .16s ease, transform .16s ease;
+}
+.nav-item:focus-visible,
+.module-tile:focus-visible,
+.primary-button:focus-visible,
+.logout-button:focus-visible {
+  outline: 2px solid #8ca9ff;
+  outline-offset: 3px;
+}
+.loader {
+  animation: spin .9s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-brand-panel,
+  .login-form,
+  .mobile-brand,
+  .setup-card,
+  .dashboard-main,
+  .topbar,
+  .welcome-row,
+  .summary-grid,
+  .content-grid,
+  .employees-panel,
+  .reports-panel,
+  .requests-panel,
+  .settings-panel,
+  .organization-panel {
+    animation: none !important;
+  }
+  .summary-card,
+  .content-card,
+  .module-tile,
+  .settings-option,
+  .settings-account-card,
+  .organization-department,
+  .primary-button,
+  .logout-button,
+  .nav-item,
+  input,
+  select {
+    transition: none !important;
+  }
+}
