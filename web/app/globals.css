@@ -732,3 +732,36 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .requests-panel .employee-table-wrap { max-height: 58vh; }
   .requests-panel .small-note { font-size: 12px; }
 }
+
+
+/* Pengajuan toolbar alignment: consistent control heights and baseline */
+.requests-panel .request-toolbar {
+  align-items: center;
+}
+.requests-panel .request-toolbar input,
+.requests-panel .request-toolbar select,
+.requests-panel .request-toolbar .logout-button,
+.requests-panel .request-toolbar .request-refresh {
+  box-sizing: border-box;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  align-self: center;
+  line-height: 1.2;
+}
+.requests-panel .request-toolbar .logout-button,
+.requests-panel .request-toolbar .request-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+}
+@media (max-width: 900px) {
+  .requests-panel .request-toolbar input,
+  .requests-panel .request-toolbar select,
+  .requests-panel .request-toolbar .logout-button,
+  .requests-panel .request-toolbar .request-refresh {
+    width: 100%;
+    margin: 0;
+  }
+}
