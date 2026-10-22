@@ -1,4 +1,5 @@
 name: Deploy ABSEN CONTROL Web to GitHub Pages
+# Triggered by repository updates to the web app.
 
 on:
   push:
