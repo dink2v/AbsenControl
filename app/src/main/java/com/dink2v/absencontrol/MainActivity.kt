@@ -3,6 +3,12 @@ package com.dink2v.absencontrol
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,10 +55,12 @@ import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
-private val Navy = Color(0xFF142B4A)
-private val Blue = Color(0xFF2864E8)
-private val Page = Color(0xFFF4F7FB)
-private val Muted = Color(0xFF718096)
+private val Navy = Color(0xFF202820)
+private val Blue = Color(0xFF54765B)
+private val Page = Color(0xFFF7F7F2)
+private val Muted = Color(0xFF74796F)
+private val ForestSoft = Color(0xFFE9EEE7)
+private val ForestLine = Color(0xFFE3E2D9)
 
 class MainActivity : ComponentActivity() {
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
@@ -250,37 +258,37 @@ private fun DashboardScreen(
     onSelectTab: (String) -> Unit,
     onLogout: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().animateContentSize(animationSpec = tween(180))) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Navy)
+                .background(Color.White)
                 .padding(start = 22.dp, end = 22.dp, top = 26.dp, bottom = 24.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.14f)),
+                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(ForestSoft),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("AC", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("AC", color = Blue, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("ABSEN CONTROL", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                    Text("Panel administrator", color = Color(0xFFD5E2F5), fontSize = 12.sp)
+                    Text("ABSEN CONTROL", color = Navy, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text("Panel administrator", color = Muted, fontSize = 12.sp)
                 }
                 TextButton(onClick = onLogout) {
-                    Text("Keluar", color = Color.White)
+                    Text("Keluar", color = Navy)
                 }
             }
             Spacer(Modifier.height(26.dp))
-            Text("Halo, Admin 👋", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            Text("Halo, Admin 👋", color = Navy, fontSize = 25.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(5.dp))
-            Text("Pantau kehadiran tim kamu di sini.", color = Color(0xFFD5E2F5), fontSize = 14.sp)
+            Text("Pantau kehadiran tim kamu di sini.", color = Muted, fontSize = 14.sp)
         }
 
         Column(
-            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(18.dp)
+            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(18.dp).animateContentSize(animationSpec = tween(180))
         ) {
             if (selectedTab == "Beranda") {
                 Text("Ringkasan hari ini", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
@@ -368,9 +376,10 @@ private fun SummaryCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
+        modifier = modifier.animateContentSize(animationSpec = tween(160)),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(Modifier.padding(14.dp)) {
             Box(
@@ -394,8 +403,8 @@ private fun MenuTile(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp).animateContentSize(animationSpec = tween(160)).clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
@@ -403,7 +412,7 @@ private fun MenuTile(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFFEAF1FF)),
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(ForestSoft),
                 contentAlignment = Alignment.Center
             ) {
                 Text(symbol, fontSize = 20.sp)
