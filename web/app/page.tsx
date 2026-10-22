@@ -267,7 +267,7 @@ export default function HomePage() {
             }
           }
         }
-        return employees.filter((employee) => included.has(employee.id));
+        return employees.filter((employee) => included.has(employee.id) && employee.id !== managerEmployee.id);
       })();
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
