@@ -23,6 +23,7 @@ const roleDescriptions: Record<Role, string> = {
 const menuItems = [
   { icon: "▦", title: "Dashboard", description: "Ringkasan operasional" },
   { icon: "♙", title: "Data Karyawan", description: "Daftar dan informasi karyawan" },
+  { icon: "♧", title: "Struktur Organisasi", description: "Atasan, tim, dan bawahan" },
   { icon: "◷", title: "Absensi", description: "Rekap kehadiran karyawan" },
   { icon: "▤", title: "Pengajuan", description: "Izin, cuti, dan koreksi absensi" },
   { icon: "▥", title: "Laporan", description: "Rekap dan laporan kehadiran" },
@@ -160,7 +161,7 @@ export default function HomePage() {
   }, [access, user]);
 
   useEffect(() => {
-    if (access !== "allowed" || !user || !db || activeSection !== "Data Karyawan") return;
+    if (access !== "allowed" || !user || !db || !["Data Karyawan", "Struktur Organisasi"].includes(activeSection)) return;
     const currentDb = db;
     let cancelled = false;
     const loadEmployees = async () => {
@@ -263,6 +264,29 @@ export default function HomePage() {
     (employee.email && profileRefs.includes(employee.email))
   );
   const managerIdentityFound = role !== "Manager" || Boolean(managerEmployee);
+
+  const normalizedPosition = (employee: EmployeeRecord) =>
+    `${employee.position} ${employee.role}`.toLowerCase();
+  const employeeTokens = (employee: EmployeeRecord) =>
+    [employee.id, employee.uid, employee.email, employee.name].filter(Boolean).map((value) => value.toLowerCase());
+  const directManagerOf = (employee: EmployeeRecord) =>
+    employees.find((candidate) => candidate.id !== employee.id &&
+      employee.managerRefs.some((ref) => employeeTokens(candidate).includes(ref)));
+  const supervisorOf = (employee: EmployeeRecord) => {
+    let parent = directManagerOf(employee);
+    const visited = new Set<string>();
+    while (parent && !visited.has(parent.id)) {
+      if (normalizedPosition(parent).includes("supervisor")) return parent;
+      visited.add(parent.id);
+      parent = directManagerOf(parent);
+    }
+    return normalizedPosition(employee).includes("supervisor") ? employee : undefined;
+  };
+  const organizationEmployees = role === "Manager" && managerEmployee
+    ? employees.filter((employee) => employee.id === managerEmployee.id || visibleEmployees.some((child) => child.id === employee.id))
+    : visibleEmployees;
+  const organizationDepartments = Array.from(new Set(organizationEmployees.map((employee) => employee.department || "Belum ditentukan"))).sort((a, b) => a.localeCompare(b, "id"));
+  const organizationSupervisors = Array.from(new Map(organizationEmployees.map((employee) => supervisorOf(employee)).filter((employee): employee is EmployeeRecord => Boolean(employee)).map((employee) => [employee.id, employee])).values()).sort((a, b) => a.name.localeCompare(b.name, "id"));
 
   const visibleEmployees = role !== "Manager"
     ? employees
@@ -417,7 +441,37 @@ export default function HomePage() {
         </header>
         {error && <div className="inline-notice" role="status">{error}<button type="button" onClick={() => setError("")} aria-label="Tutup pesan">×</button></div>}
         {activeSection === "Dashboard" && <div className="welcome-row"><div><h2>Selamat datang 👋</h2><p>Berikut ruang kerja ABSEN CONTROL untuk hari ini.</p></div><div className="date-chip">{new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date())}</div></div>}
-        {activeSection === "Data Karyawan" ? <section className="content-card employees-panel">
+        {activeSection === "Struktur Organisasi" ? <section className="content-card employees-panel organization-panel">
+          <div className="section-heading"><div><h3>Struktur Organisasi</h3><p>Hubungan atasan, tim, dan bawahan dari data koleksi <code>users</code>.</p></div><span className="module-count">{organizationEmployees.length} orang</span></div>
+          <div className="organization-summary">
+            <article><span>Divisi</span><strong>{organizationDepartments.length}</strong></article>
+            <article><span>Supervisor terhubung</span><strong>{organizationSupervisors.length}</strong></article>
+            <article><span>Belum terhubung ke atasan</span><strong>{organizationEmployees.filter((employee) => !directManagerOf(employee) && !["owner", "admin"].includes(normalizedPosition(employee).trim())).length}</strong></article>
+          </div>
+          {employeesLoading ? <p className="employee-state">Memuat struktur organisasi dari Firestore…</p> : organizationEmployees.length === 0 ? <p className="employee-state">{role === "Manager" && !managerIdentityFound ? "Akun Manager belum bisa dicocokkan dengan dokumen users. Cocokkan UID atau email akun Manager dengan data karyawan terlebih dahulu." : "Belum ada data karyawan yang bisa ditampilkan."}</p> : <div className="organization-groups">
+            {organizationDepartments.map((department) => {
+              const departmentEmployees = organizationEmployees.filter((employee) => (employee.department || "Belum ditentukan") === department);
+              const groupMap = new Map<string, { supervisor?: EmployeeRecord; members: EmployeeRecord[] }>();
+              departmentEmployees.forEach((employee) => {
+                const supervisor = supervisorOf(employee);
+                const key = supervisor?.id || "__unassigned__";
+                const existing = groupMap.get(key);
+                if (existing) existing.members.push(employee);
+                else groupMap.set(key, { supervisor, members: [employee] });
+              });
+              return <section className="organization-department" key={department}>
+                <div className="organization-department-title"><span className="organization-icon">▦</span><div><h4>{department}</h4><p>{departmentEmployees.length} anggota</p></div></div>
+                <div className="organization-team-grid">{Array.from(groupMap.entries()).map(([key, group]) => <article className="organization-team" key={key}>
+                  <div className="organization-supervisor"><span className="organization-avatar">{(group.supervisor?.name || "?").slice(0, 1).toUpperCase()}</span><div><strong>{group.supervisor?.name || "Supervisor belum ditetapkan"}</strong><small>{group.supervisor ? [group.supervisor.position || "Supervisor", group.supervisor.department].filter(Boolean).join(" · ") : "Belum ada hubungan atasan yang cocok"}</small></div><span className="module-count">{group.members.filter((member) => member.id !== group.supervisor?.id).length} bawahan</span></div>
+                  <div className="organization-members">{group.members.filter((member) => member.id !== group.supervisor?.id).map((member) => <div className="organization-member" key={member.id}><span className="organization-avatar small">{member.name.slice(0, 1).toUpperCase()}</span><div><strong>{member.name}</strong><small>{member.position || member.role || "Karyawan"}</small></div><span className="organization-member-status">{directManagerOf(member)?.name ? "Terhubung" : "Perlu atasan"}</span></div>)}
+                    {group.members.length === 1 && group.supervisor && <p className="organization-empty">Belum ada anggota bawahan yang terhubung.</p>}
+                  </div>
+                </article>)}</div>
+              </section>;
+            })}
+          </div>}
+          <p className="small-note">Tahap ini hanya membaca data. Nilai seperti <code>atasan: "Supervisor"</code> tidak dianggap sebagai nama orang. Isi field <code>atasanUid</code> atau <code>supervisorUid</code> dengan UID atasan yang benar agar bagan terhubung otomatis. Hak akses tetap mengikuti role akun.</p>
+        </section> : activeSection === "Data Karyawan" ? <section className="content-card employees-panel">
           <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><span className="module-count">{employees.length} karyawan</span></div>
           <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
           {employeesLoading ? <p className="employee-state">Memuat data karyawan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Nama</th><th>Email</th><th>Jabatan / Divisi</th><th>Role</th><th>Status</th></tr></thead><tbody>
