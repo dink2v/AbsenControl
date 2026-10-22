@@ -183,7 +183,11 @@ export default function HomePage() {
             "atasanId", "idAtasan", "atasanUid", "atasanEmail", "reportsTo",
             "supervisorId", "supervisorUid", "leaderId", "managerName", "namaAtasan",
             "atasan", "supervisorName",
-          ].map((key) => data[key]).filter((value): value is string => typeof value === "string" && Boolean(value.trim())).map((value) => value.trim().toLowerCase());
+          ].map((key) => data[key]).filter((value): value is string => {
+            if (typeof value !== "string") return false;
+            const normalized = value.trim().toLowerCase();
+            return Boolean(normalized) && !["kosong", "null", "undefined", "-", "n/a"].includes(normalized);
+          }).map((value) => value.trim().toLowerCase());
           return {
             id: item.id,
             uid: pick("uid", "userId", "authUid", "firebaseUid") || item.id,
@@ -472,7 +476,7 @@ export default function HomePage() {
               </section>;
             })}
           </div>}
-          <p className="small-note">Tahap ini hanya membaca data. Nilai seperti <code>atasan: "Supervisor"</code> tidak dianggap sebagai nama orang. Isi field <code>atasanUid</code> atau <code>supervisorUid</code> dengan UID atasan yang benar agar bagan terhubung otomatis. Hak akses tetap mengikuti role akun.</p>
+          <p className="small-note">Struktur ini mencocokkan nilai <code>atasan</code> dengan nama, email, UID, atau ID dokumen pengguna. Untuk menghindari nama yang sama, lebih aman mengisi <code>atasanUid</code> atau <code>supervisorUid</code> dengan UID atasan yang benar. Nilai penanda seperti <code>kosong</code> tidak dianggap sebagai atasan. Hak akses tetap mengikuti role akun.</p>
         </section> : activeSection === "Data Karyawan" ? <section className="content-card employees-panel">
           <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><span className="module-count">{employees.length} karyawan</span></div>
           <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
