@@ -158,3 +158,43 @@ h1,h2,h3,h4,p{margin-top:0}
 .organization-empty{font-size:10px;color:var(--muted);line-height:1.6;margin:0;padding:14px 0}
 @media(max-width:900px){.organization-team-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.organization-summary{grid-template-columns:1fr;gap:8px}.organization-summary article{display:flex;align-items:center;justify-content:space-between;padding:11px 13px}.organization-summary article span{margin:0}.organization-summary article strong{font-size:20px}.organization-department{padding:10px}.organization-supervisor{align-items:flex-start;flex-wrap:wrap;padding:10px}.organization-supervisor .module-count{margin-left:auto}.organization-member{align-items:flex-start;flex-wrap:wrap}.organization-member-status{margin-left:37px}}
+
+
+/* Pengajuan: responsive database review */
+.request-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.request-summary article {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border, #e6eaf0);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+.request-summary article span { color: var(--muted, #667085); font-size: 12px; }
+.request-summary article strong { font-size: 24px; line-height: 1.2; }
+.request-toolbar { align-items: center; }
+.request-toolbar select {
+  min-height: 42px;
+  max-width: 220px;
+  padding: 0 12px;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+.request-refresh { white-space: nowrap; }
+.request-reason { min-width: 180px; max-width: 320px; white-space: normal; overflow-wrap: anywhere; }
+.request-table td { vertical-align: top; }
+.request-table td small { display: block; margin-top: 4px; color: var(--muted, #667085); overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .request-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .request-toolbar { align-items: stretch; flex-direction: column; }
+  .request-toolbar input, .request-toolbar select, .request-toolbar button { width: 100%; max-width: none; }
+}
