@@ -7,7 +7,7 @@ import {
   signOut,
   User,
 } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { auth, db, firebaseConfigured } from "@/lib/firebase";
 
 type Role = "HRD" | "Manager" | "Owner" | "Admin";
@@ -37,6 +37,8 @@ export default function HomePage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [stats, setStats] = useState({ employees: "—", present: "—", pending: "—", review: "—" });
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
     if (!auth) {
@@ -73,6 +75,53 @@ export default function HomePage() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db) return;
+    let cancelled = false;
+    const loadDashboardStats = async () => {
+      setStatsLoading(true);
+      try {
+        const [usersSnapshot, attendanceSnapshot, requestsSnapshot] = await Promise.all([
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "attendance")),
+          getDocs(collection(db, "pengajuan")),
+        ]);
+        const today = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Jakarta",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+        const presentToday = attendanceSnapshot.docs.filter((item) => {
+          const data = item.data();
+          return data.tanggal === today && String(data.status ?? "").toLowerCase() === "hadir";
+        }).length;
+        const pendingRequests = requestsSnapshot.docs.filter((item) => {
+          const status = String(item.data().status ?? "").toLowerCase();
+          return status === "menunggu" || status === "pending" || status === "menunggu persetujuan";
+        }).length;
+        if (!cancelled) {
+          setStats({
+            employees: String(usersSnapshot.size),
+            present: String(presentToday),
+            pending: String(pendingRequests),
+            review: String(pendingRequests),
+          });
+          setError("");
+        }
+      } catch {
+        if (!cancelled) {
+          setStats({ employees: "—", present: "—", pending: "—", review: "—" });
+          setError("Data dashboard belum bisa dibaca. Periksa Firestore Security Rules untuk akun admin.");
+        }
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    };
+    void loadDashboardStats();
+    return () => { cancelled = true; };
+  }, [access, user]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -187,10 +236,10 @@ export default function HomePage() {
         {error && <div className="inline-notice" role="status">{error}<button type="button" onClick={() => setError("")} aria-label="Tutup pesan">×</button></div>}
         <div className="welcome-row"><div><h2>Selamat datang 👋</h2><p>Berikut ruang kerja ABSEN CONTROL untuk hari ini.</p></div><div className="date-chip">{new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date())}</div></div>
         <section className="summary-grid" aria-label="Ringkasan">
-          <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>—</strong><p>Menunggu koneksi data karyawan</p></article>
-          <article className="summary-card"><div className="summary-top"><span>Hadir Hari Ini</span><span className="summary-icon green">✓</span></div><strong>—</strong><p>Menunggu koneksi data absensi</p></article>
-          <article className="summary-card"><div className="summary-top"><span>Pengajuan Pending</span><span className="summary-icon amber">◷</span></div><strong>—</strong><p>Menunggu koneksi data pengajuan</p></article>
-          <article className="summary-card"><div className="summary-top"><span>Perlu Ditinjau</span><span className="summary-icon purple">▤</span></div><strong>—</strong><p>Ringkasan akan tersedia setelah integrasi</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Hadir Hari Ini</span><span className="summary-icon green">✓</span></div><strong>{stats.present}</strong><p>{statsLoading ? "Memuat data absensi…" : "Kehadiran pada hari ini"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Pengajuan Pending</span><span className="summary-icon amber">◷</span></div><strong>{stats.pending}</strong><p>{statsLoading ? "Memuat data pengajuan…" : "Pengajuan berstatus menunggu"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Perlu Ditinjau</span><span className="summary-icon purple">▤</span></div><strong>{stats.review}</strong><p>{statsLoading ? "Memuat ringkasan…" : "Pengajuan yang perlu ditinjau"}</p></article>
         </section>
         <section className="content-grid">
           <article className="content-card main-card"><div className="section-heading"><div><h3>Modul pengelolaan</h3><p>Ruang kerja utama sesuai hak akses akun.</p></div><span className="module-count">06 modul</span></div><div className="module-grid">{menuItems.slice(1).map((item) => <button className="module-tile" key={item.title} type="button" onClick={() => setError(item.title + " belum terhubung ke data nyata. Kita bangun setelah struktur data dikonfirmasi.")}><span className="module-icon">{item.icon}</span><strong>{item.title}</strong><span>{item.description}</span><span className="tile-arrow">↗</span></button>)}</div></article>
