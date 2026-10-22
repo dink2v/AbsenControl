@@ -81,8 +81,29 @@ export default function HomePage() {
     setError("");
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-    } catch {
-      setError("Login gagal. Periksa email dan kata sandi, lalu coba lagi.");
+    } catch (cause: unknown) {
+      const code =
+        typeof cause === "object" && cause !== null && "code" in cause
+          ? String((cause as { code?: unknown }).code ?? "")
+          : "";
+
+      if (code === "auth/invalid-email") {
+        setError("Format email tidak valid. Periksa kembali alamat email kamu.");
+      } else if (
+        code === "auth/invalid-credential" ||
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found"
+      ) {
+        setError("Email atau kata sandi salah. Periksa kembali lalu coba lagi.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.");
+      } else if (code === "auth/network-request-failed") {
+        setError("Koneksi internet bermasalah. Periksa koneksi lalu coba lagi.");
+      } else if (code === "auth/user-disabled") {
+        setError("Akun ini dinonaktifkan. Hubungi Admin.");
+      } else {
+        setError("Login belum berhasil. Periksa koneksi dan data akun, lalu coba lagi.");
+      }
     } finally {
       setBusy(false);
     }
