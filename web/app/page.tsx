@@ -78,14 +78,15 @@ export default function HomePage() {
 
   useEffect(() => {
     if (access !== "allowed" || !user || !db) return;
+    const currentDb = db;
     let cancelled = false;
     const loadDashboardStats = async () => {
       setStatsLoading(true);
       try {
         const [usersSnapshot, attendanceSnapshot, requestsSnapshot] = await Promise.all([
-          getDocs(collection(db, "users")),
-          getDocs(collection(db, "attendance")),
-          getDocs(collection(db, "pengajuan")),
+          getDocs(collection(currentDb, "users")),
+          getDocs(collection(currentDb, "attendance")),
+          getDocs(collection(currentDb, "pengajuan")),
         ]);
         const today = new Intl.DateTimeFormat("en-CA", {
           timeZone: "Asia/Jakarta",
