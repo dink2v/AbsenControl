@@ -12,7 +12,7 @@ import { auth, db, firebaseConfigured } from "@/lib/firebase";
 
 type Role = "HRD" | "Manager" | "Owner" | "Admin";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
-type EmployeeRecord = { id: string; name: string; email: string; department: string; role: string; status: string };
+type EmployeeRecord = { id: string; uid: string; name: string; email: string; department: string; position: string; role: string; status: string; managerRefs: string[]; managerName: string };
 
 const roleDescriptions: Record<Role, string> = {
   HRD: "Pengelolaan karyawan, absensi, dan pengajuan",
@@ -34,6 +34,7 @@ export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [access, setAccess] = useState<AccessState>("checking");
   const [role, setRole] = useState<Role | null>(null);
+  const [accessProfile, setAccessProfile] = useState<Record<string, unknown>>({});
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -69,15 +70,18 @@ export default function HomePage() {
         const data = adminDoc.data();
         const allowedRoles: Role[] = ["HRD", "Manager", "Owner", "Admin"];
         if (adminDoc.exists() && data?.active === true && allowedRoles.includes(data?.role)) {
+          setAccessProfile(data ?? {});
           setRole(data.role as Role);
           setAccess("allowed");
         } else {
           setRole(null);
+          setAccessProfile({});
           setAccess("denied");
           await signOut(currentAuth);
         }
       } catch {
         setRole(null);
+        setAccessProfile({});
         setAccess("denied");
         setError("Tidak bisa memverifikasi hak akses. Periksa koneksi dan aturan Firestore.");
         await signOut(currentAuth);
@@ -151,13 +155,23 @@ export default function HomePage() {
             }
             return "";
           };
+          const managerRefs = [
+            "managerId", "managerUid", "managerUserId", "managerEmail", "manager_id",
+            "atasanId", "idAtasan", "atasanUid", "atasanEmail", "reportsTo",
+            "supervisorId", "supervisorUid", "leaderId", "managerName", "namaAtasan",
+            "atasan", "supervisorName",
+          ].map((key) => data[key]).filter((value): value is string => typeof value === "string" && Boolean(value.trim())).map((value) => value.trim().toLowerCase());
           return {
             id: item.id,
+            uid: pick("uid", "userId", "authUid", "firebaseUid") || item.id,
             name: pick("nama", "name", "namaLengkap", "fullName", "displayName") || "Tanpa nama",
-            email: pick("email", "emailAddress"),
-            department: pick("departemen", "department", "divisi", "division", "jabatan", "position"),
+            email: pick("email", "emailAddress").toLowerCase(),
+            department: pick("departemen", "department", "divisi", "division"),
+            position: pick("jabatan", "position", "jobTitle", "title"),
             role: pick("role", "peran") || "Karyawan",
             status: pick("status", "statusAkun", "accountStatus") || "Aktif",
+            managerRefs,
+            managerName: pick("managerName", "namaAtasan", "atasan", "supervisorName"),
           };
         }).sort((a, b) => a.name.localeCompare(b.name, "id"));
         if (!cancelled) setEmployees(rows);
@@ -214,6 +228,47 @@ export default function HomePage() {
     void loadAttendance();
     return () => { cancelled = true; };
   }, [access, user, activeSection]);
+
+  const profileRefs = [
+    user?.uid,
+    user?.email,
+    ...["employeeId", "userId", "uid", "authUid", "firebaseUid", "email", "employeeEmail", "karyawanId", "idKaryawan"].map((key) => accessProfile[key]).filter((value): value is string => typeof value === "string"),
+  ].filter((value): value is string => Boolean(value)).map((value) => value.trim().toLowerCase());
+
+  const managerEmployee = employees.find((employee) =>
+    profileRefs.includes(employee.id.toLowerCase()) ||
+    profileRefs.includes(employee.uid.toLowerCase()) ||
+    (employee.email && profileRefs.includes(employee.email))
+  );
+  const managerIdentityFound = role !== "Manager" || Boolean(managerEmployee);
+
+  const visibleEmployees = role !== "Manager"
+    ? employees
+    : (() => {
+        if (!managerEmployee) return [];
+        const included = new Set<string>([managerEmployee.id]);
+        const parentTokens = (employee: EmployeeRecord) => [
+          employee.id, employee.uid, employee.email, employee.name,
+        ].filter(Boolean).map((value) => value.toLowerCase());
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const employee of employees) {
+            if (included.has(employee.id)) continue;
+            const parentMatches = employee.managerRefs.some((ref) =>
+              Array.from(included).some((includedId) => {
+                const parent = employees.find((candidate) => candidate.id === includedId);
+                return parent ? parentTokens(parent).includes(ref) : false;
+              })
+            );
+            if (parentMatches) {
+              included.add(employee.id);
+              changed = true;
+            }
+          }
+        }
+        return employees.filter((employee) => included.has(employee.id));
+      })();
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -331,11 +386,12 @@ export default function HomePage() {
           <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><span className="module-count">{employees.length} karyawan</span></div>
           <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
           {employeesLoading ? <p className="employee-state">Memuat data karyawan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Nama</th><th>Email</th><th>Jabatan / Divisi</th><th>Role</th><th>Status</th></tr></thead><tbody>
-            {employees.filter((employee) => [employee.name, employee.email, employee.department, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{employee.department || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td></tr>)}
+            {visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{[employee.position, employee.department].filter(Boolean).join(" · ") || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td></tr>)}
           </tbody></table>
-          {employees.length === 0 && !employeesLoading && <p className="employee-state">Belum ada dokumen karyawan pada koleksi <code>users</code>.</p>}
-          {employees.length > 0 && employees.filter((employee) => [employee.name, employee.email, employee.department, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada karyawan yang cocok dengan pencarian.</p>}
+          {visibleEmployees.length === 0 && !employeesLoading && <p className="employee-state">{role === "Manager" && !managerIdentityFound ? "Akun Manager belum bisa dicocokkan dengan data karyawan. Hubungkan email/UID akun ke dokumen users agar hierarki tim dapat ditampilkan." : "Belum ada karyawan dalam cakupan akses ini."}</p>}
+          {visibleEmployees.length > 0 && visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada karyawan yang cocok dengan pencarian.</p>}
           </div>}
+          {role === "Manager" && <p className="small-note">Akses Manager dibatasi ke seluruh hierarki bawahan langsung dan tidak langsung. Hubungan tim dibaca dari field atasan/manager pada dokumen karyawan.</p>}
           <p className="small-note">Tampilan ini hanya membaca data. Tambah, edit, dan hapus karyawan akan dibuat setelah format field di koleksi users dikonfirmasi.</p>
         </section> : activeSection === "Absensi" ? <section className="content-card employees-panel">
           <div className="section-heading"><div><h3>Rekap Absensi</h3><p>Data langsung dari koleksi <code>attendance</code> di Firestore.</p></div><span className="module-count">{attendanceRows.length} catatan</span></div>
