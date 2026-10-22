@@ -50,6 +50,9 @@ export default function HomePage() {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSearch, setAttendanceSearch] = useState("");
   const [attendanceDate, setAttendanceDate] = useState(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
+  const [attendanceLoaded, setAttendanceLoaded] = useState(false);
+  const [attendanceLoadedKey, setAttendanceLoadedKey] = useState(-1);
+  const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
   const [requestRows, setRequestRows] = useState<RequestRecord[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestSearch, setRequestSearch] = useState("");
@@ -223,7 +226,7 @@ export default function HomePage() {
   }, [access, user, activeSection]);
 
   useEffect(() => {
-    if (access !== "allowed" || !user || !db || activeSection !== "Absensi") return;
+    if (access !== "allowed" || !user || !db || !["Absensi", "Laporan"].includes(activeSection) || (attendanceLoaded && attendanceLoadedKey === attendanceReloadKey)) return;
     const currentDb = db;
     let cancelled = false;
     const loadAttendance = async () => {
@@ -249,7 +252,11 @@ export default function HomePage() {
             status: pick("status") || "Tidak diketahui",
           };
         }).sort((a, b) => b.date.localeCompare(a.date, "id") || a.name.localeCompare(b.name, "id"));
-        if (!cancelled) setAttendanceRows(rows);
+        if (!cancelled) {
+          setAttendanceRows(rows);
+          setAttendanceLoaded(true);
+          setAttendanceLoadedKey(attendanceReloadKey);
+        }
       } catch {
         if (!cancelled) {
           setAttendanceRows([]);
@@ -261,7 +268,7 @@ export default function HomePage() {
     };
     void loadAttendance();
     return () => { cancelled = true; };
-  }, [access, user, activeSection]);
+  }, [access, user, activeSection, attendanceLoaded, attendanceLoadedKey, attendanceReloadKey]);
 
   useEffect(() => {
     if (access !== "allowed" || !user || !db || activeSection !== "Pengajuan" || requestLoadedKey === requestReloadKey) return;
@@ -594,7 +601,33 @@ export default function HomePage() {
           <article className="content-card main-card"><div className="section-heading"><div><h3>Modul pengelolaan</h3><p>Ruang kerja utama sesuai hak akses akun.</p></div><span className="module-count">06 modul</span></div><div className="module-grid">{menuItems.slice(1).map((item) => <button className="module-tile" key={item.title} type="button" onClick={() => { setActiveSection(item.title); setError(""); }}><span className="module-icon">{item.icon}</span><strong>{item.title}</strong><span>{item.description}</span><span className="tile-arrow">↗</span></button>)}</div></article>
           <aside className="content-card access-card"><div className="section-heading"><div><h3>Akses akun</h3><p>Role yang aktif saat ini.</p></div></div><div className="role-emblem">♙</div><span className="role-pill">{role}</span><h4>{role === "Admin" ? "Administrator sistem" : role}</h4><p className="muted">{roleDescriptions[role]}</p><div className="access-divider" /><div className="access-status"><span className="secure-dot" /> Akun terverifikasi</div><p className="small-note">Hak akses diverifikasi melalui dokumen controlAdmins di Firestore.</p></aside>
         </section>
-        </> : <section className="content-card employees-panel"><div className="section-heading"><div><h3>{activeSection}</h3><p>Modul ini belum dihubungkan ke koleksi data terkait.</p></div></div><p className="employee-state">Kita lanjutkan setelah struktur data modul ini dikonfirmasi. Bagian Data Karyawan sudah membaca koleksi <code>users</code>.</p></section>}
+        </> : activeSection === "Laporan" ? <section className="content-card employees-panel reports-panel">
+          <div className="section-heading"><div><h3>Laporan Kehadiran</h3><p>Ringkasan memakai data absensi yang sama dengan menu Absensi agar tidak membaca ulang koleksi.</p></div><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Perbarui laporan"}</button></div>
+          {attendanceLoading ? <p className="employee-state">Memuat data laporan dari Firestore…</p> : <>
+            <div className="report-summary">
+              <article><span>Total catatan</span><strong>{attendanceRows.length}</strong><small>Semua catatan yang terbaca</small></article>
+              <article><span>Hadir</span><strong>{attendanceRows.filter((item) => /hadir|present/i.test(item.status)).length}</strong><small>Status hadir / present</small></article>
+              <article><span>Izin / sakit / cuti</span><strong>{attendanceRows.filter((item) => /izin|sakit|cuti/i.test(item.status)).length}</strong><small>Status yang tercatat</small></article>
+              <article><span>Perlu diperiksa</span><strong>{attendanceRows.filter((item) => /alpha|alpa|terlambat|tidak diketahui/i.test(item.status)).length}</strong><small>Periksa status dan data</small></article>
+            </div>
+            <div className="section-heading report-subheading"><div><h3>Ringkasan terbaru</h3><p>Sepuluh catatan terbaru berdasarkan tanggal yang tersimpan.</p></div><span className="module-count">{attendanceRows.length} catatan</span></div>
+            <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Jam masuk</th><th>Jam pulang</th><th>Status</th></tr></thead><tbody>
+              {attendanceRows.slice(0, 10).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td></tr>)}
+            </tbody></table>{attendanceRows.length === 0 && <p className="employee-state">Belum ada data absensi untuk diringkas.</p>}</div>
+            <p className="small-note">Ringkasan berdasarkan status dan field yang tersedia. Modul ini hanya membaca data dan belum mengubah atau mengekspor catatan.</p>
+          </>}
+        </section> : activeSection === "Pengaturan" ? <section className="content-card settings-panel">
+          <div className="settings-hero"><div className="settings-hero-icon">⚙</div><div><span className="settings-eyebrow">PUSAT KONTROL</span><h3>Pengaturan Sistem</h3><p>Ringkasan akun dan konfigurasi ABSEN CONTROL.</p></div><span className="settings-status"><i /> Sistem aktif</span></div>
+          <div className="settings-section-title"><div><h4>Akun yang sedang digunakan</h4><p>Informasi akses yang telah diverifikasi oleh Firestore.</p></div></div>
+          <div className="settings-account-card"><div className="settings-account-avatar">{(user?.email || role || "A").slice(0,1).toUpperCase()}</div><div className="settings-account-info"><strong>{user?.displayName || user?.email || "Admin ABSEN CONTROL"}</strong><span>{user?.email || "Email tidak tersedia"}</span><small>UID: {user?.uid || "—"}</small></div><span className="settings-role">{role || "Tidak diketahui"}</span></div>
+          <div className="settings-section-title"><div><h4>Konfigurasi dan keamanan</h4><p>Informasi sistem dan kontrol akses.</p></div></div>
+          <div className="settings-options">
+            <article className="settings-option"><span className="settings-option-icon blue">♙</span><div><strong>Hak akses akun</strong><p>Role diverifikasi melalui dokumen <code>controlAdmins</code> di Firestore.</p><span className="settings-chip">Terverifikasi saat login</span></div><span className="settings-option-arrow">›</span></article>
+            <article className="settings-option"><span className="settings-option-icon green">▤</span><div><strong>Sumber data</strong><p>Karyawan: <code>users</code> · Absensi: <code>attendance</code> · Pengajuan: <code>pengajuan</code>.</p><span className="settings-chip">Firestore</span></div><span className="settings-option-arrow">›</span></article>
+            <article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Privasi dan keamanan</strong><p>Perubahan role dan aturan akses perlu ditinjau sebelum diterapkan.</p><span className="settings-chip">Perlu konfirmasi</span></div><span className="settings-option-arrow">›</span></article>
+          </div>
+          <div className="settings-notice"><span>ⓘ</span><div><strong>Pengaturan masih dalam mode informasi</strong><p>Form untuk mengubah role, akun, atau konfigurasi belum disambungkan agar tidak mengubah akses atau data produksi secara tidak sengaja.</p></div></div>
+        </section> : <section className="content-card employees-panel"><div className="section-heading"><div><h3>{activeSection}</h3><p>Modul ini belum dihubungkan ke koleksi data terkait.</p></div></div><p className="employee-state">Kita lanjutkan setelah struktur data modul ini dikonfirmasi. Bagian Data Karyawan sudah membaca koleksi <code>users</code>.</p></section>}
         <footer className="dashboard-footer">ABSEN CONTROL <span>·</span> Panel internal manajemen absensi</footer>
       </section>
     </main>
