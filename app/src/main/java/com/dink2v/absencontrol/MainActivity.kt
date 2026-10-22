@@ -86,6 +86,9 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
     var isAdmin by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Masuk menggunakan akun administrator.") }
     var selectedTab by remember { mutableStateOf("Beranda") }
+    var dataRows by remember { mutableStateOf(emptyList<Pair<String, String>>()) }
+    var dataLoading by remember { mutableStateOf(false) }
+    var dataError by remember { mutableStateOf("") }
 
     fun verifyAdmin(uid: String) {
         isLoading = true
@@ -115,9 +118,55 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
         auth.currentUser?.uid?.let { verifyAdmin(it) }
     }
 
+    LaunchedEffect(selectedTab, isAdmin) {
+        val collectionName = when (selectedTab) {
+            "Karyawan" -> "users"
+            "Absensi" -> "attendance"
+            "Pengajuan" -> "pengajuan"
+            else -> null
+        }
+        if (!isAdmin || collectionName == null) {
+            dataRows = emptyList()
+            dataError = ""
+        } else {
+            dataLoading = true
+            dataError = ""
+            db.collection(collectionName).limit(100).get()
+                .addOnSuccessListener { snapshot ->
+                    dataRows = snapshot.documents.map { document ->
+                        val data = document.data ?: emptyMap<String, Any>()
+                        fun firstValue(vararg keys: String): String =
+                            keys.firstNotNullOfOrNull { key ->
+                                data[key]?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                            } ?: ""
+                        val title = when (selectedTab) {
+                            "Karyawan" -> firstValue("nama", "name", "namaLengkap", "fullName", "displayName").ifBlank { "Karyawan tanpa nama" }
+                            "Absensi" -> firstValue("nama", "name", "namaLengkap", "fullName").ifBlank { "Catatan absensi" }
+                            else -> firstValue("nama", "name", "employee", "namaKaryawan", "email").ifBlank { "Pengajuan karyawan" }
+                        }
+                        val detail = when (selectedTab) {
+                            "Karyawan" -> listOf(firstValue("email"), firstValue("jabatan", "position", "role"), firstValue("departemen", "department", "divisi"), firstValue("status")).filter { it.isNotBlank() }.joinToString(" • ")
+                            "Absensi" -> listOf(firstValue("tanggal", "date", "attendanceDate"), firstValue("jamMasuk", "checkIn", "waktuMasuk"), firstValue("status")).filter { it.isNotBlank() }.joinToString(" • ")
+                            else -> listOf(firstValue("type", "jenis", "tipe", "alasan"), firstValue("tanggal", "startDate", "tanggalMulai"), firstValue("status")).filter { it.isNotBlank() }.joinToString(" • ")
+                        }
+                        title to detail.ifBlank { "ID: ${document.id}" }
+                    }
+                    dataLoading = false
+                }
+                .addOnFailureListener { error ->
+                    dataRows = emptyList()
+                    dataLoading = false
+                    dataError = "Data gagal dimuat. Periksa koneksi dan Firestore Rules."
+                }
+        }
+    }
+
     if (isAdmin) {
         DashboardScreen(
             selectedTab = selectedTab,
+            dataRows = dataRows,
+            dataLoading = dataLoading,
+            dataError = dataError,
             onSelectTab = { selectedTab = it },
             onLogout = {
                 auth.signOut()
@@ -256,6 +305,9 @@ private fun LoginScreen(
 @Composable
 private fun DashboardScreen(
     selectedTab: String,
+    dataRows: List<Pair<String, String>>,
+    dataLoading: Boolean,
+    dataError: String,
     onSelectTab: (String) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -294,7 +346,7 @@ private fun DashboardScreen(
             if (selectedTab == "Beranda") {
                 Text("Ringkasan hari ini", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(5.dp))
-                Text("Statistik akan terhubung ke data Firebase.", color = Muted, fontSize = 13.sp)
+                Text("Ringkasan kehadiran tim kamu.", color = Muted, fontSize = 13.sp)
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SummaryCard("Hadir", "—", "✓", Color(0xFFE7F8EF), Color(0xFF16804A), Modifier.weight(1f))
@@ -327,14 +379,45 @@ private fun DashboardScreen(
                     fontSize = 14.sp
                 )
                 Spacer(Modifier.height(18.dp))
-                Card(
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Text("Tahap rancangan UI", color = Navy, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Tampilan dasar sudah disiapkan. Langkah berikutnya adalah menghubungkan halaman ini ke data Firebase dan menambahkan aksi admin.", color = Muted, fontSize = 14.sp)
+                if (selectedTab == "Pengaturan") {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Column(Modifier.padding(18.dp)) {
+                            Text("Akun administrator", color = Navy, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Akses aplikasi diverifikasi melalui controlAdmins berdasarkan UID, role, dan status aktif.", color = Muted, fontSize = 14.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Text("Versi aplikasi 0.1.0", color = Blue, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+                    }
+                } else {
+                    when {
+                        dataLoading -> CircularProgressIndicator(color = Blue, modifier = Modifier.padding(20.dp))
+                        dataError.isNotBlank() -> Text(dataError, color = Color(0xFFB42318), fontSize = 14.sp)
+                        dataRows.isEmpty() -> Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Text("Belum ada data untuk ditampilkan.", modifier = Modifier.padding(18.dp), color = Muted, fontSize = 14.sp)
+                        }
+                        else -> dataRows.forEach { (title, detail) ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp).animateContentSize(animationSpec = tween(160)),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                                    Text(title, color = Navy, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    if (detail.isNotBlank()) {
+                                        Spacer(Modifier.height(5.dp))
+                                        Text(detail, color = Muted, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
