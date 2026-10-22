@@ -17,8 +17,8 @@ type RequestRecord = { id: string; employee: string; email: string; type: string
 
 const roleDescriptions: Record<Role, string> = {
   Manager: "Pemantauan tim dan pengajuan sesuai wewenang",
-  Owner: "Ringkasan operasional dan laporan perusahaan",
-  Admin: "Akses penuh untuk pengaturan sistem dan akun",
+  Owner: "Akses penuh untuk melihat dan mengelola seluruh sistem",
+  Admin: "Akses penuh untuk melihat, mengelola sistem, dan mengangkat Admin baru",
 };
 
 const menuItems = [
@@ -632,13 +632,13 @@ export default function HomePage() {
           <div className="settings-hero"><div className="settings-hero-icon">⚙</div><div><span className="settings-eyebrow">PUSAT KONTROL</span><h3>Pengaturan Sistem</h3><p>Ringkasan akun dan konfigurasi ABSEN CONTROL.</p></div><span className="settings-status"><i /> Sistem aktif</span></div>
           <div className="settings-section-title"><div><h4>Akun yang sedang digunakan</h4><p>Informasi akses yang telah diverifikasi oleh Firestore.</p></div></div>
           <div className="settings-account-card"><div className="settings-account-avatar">{(user?.email || role || "A").slice(0,1).toUpperCase()}</div><div className="settings-account-info"><strong>{user?.displayName || user?.email || "Admin ABSEN CONTROL"}</strong><span>{user?.email || "Email tidak tersedia"}</span><small>UID: {user?.uid || "—"}</small></div><span className="settings-role">{role || "Tidak diketahui"}</span></div>
-          <div className="settings-section-title"><div><h4>Konfigurasi dan keamanan</h4><p>Informasi sistem dan kontrol akses.</p></div></div>
+          <div className="settings-section-title"><div><h4>Kebijakan akses yang disepakati</h4><p>Owner utama dan Admin memiliki akses operasional penuh.</p></div></div>
           <div className="settings-options">
-            <article className="settings-option"><span className="settings-option-icon blue">♙</span><div><strong>Hak akses akun</strong><p>Role diverifikasi melalui dokumen <code>controlAdmins</code> di Firestore.</p><span className="settings-chip">Terverifikasi saat login</span></div><span className="settings-option-arrow">›</span></article>
-            <article className="settings-option"><span className="settings-option-icon green">▤</span><div><strong>Sumber data</strong><p>Karyawan: <code>users</code> · Absensi: <code>attendance</code> · Pengajuan: <code>pengajuan</code>.</p><span className="settings-chip">Firestore</span></div><span className="settings-option-arrow">›</span></article>
-            <article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Privasi dan keamanan</strong><p>Perubahan role dan aturan akses perlu ditinjau sebelum diterapkan.</p><span className="settings-chip">Perlu konfirmasi</span></div><span className="settings-option-arrow">›</span></article>
+            <article className="settings-option"><span className="settings-option-icon blue">♙</span><div><strong>Owner utama</strong><p>Email Owner yang terdaftar dapat melihat dan mengelola seluruh sistem.</p><span className="settings-chip">Akses penuh</span></div><span className="settings-option-arrow">✓</span></article>
+            <article className="settings-option"><span className="settings-option-icon green">♧</span><div><strong>Admin</strong><p>Admin terdaftar dapat mengelola sistem dan mengangkat Admin baru.</p><span className="settings-chip">Akses penuh + kelola Admin</span></div><span className="settings-option-arrow">✓</span></article>
+            <article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Verifikasi akses</strong><p>Hak akses tetap divalidasi melalui dokumen <code>controlAdmins</code> di Firestore. Pendaftaran akun biasa tidak otomatis memberikan role Admin.</p><span className="settings-chip">Firebase Authentication + Firestore</span></div><span className="settings-option-arrow">›</span></article>
           </div>
-          <div className="settings-notice"><span>ⓘ</span><div><strong>Pengaturan masih dalam mode informasi</strong><p>Form untuk mengubah role, akun, atau konfigurasi belum disambungkan agar tidak mengubah akses atau data produksi secara tidak sengaja.</p></div></div>
+          <div className="settings-notice"><span>ⓘ</span><div><strong>Pengelolaan akun Admin belum diaktifkan</strong><p>Halaman ini menampilkan kebijakan akses yang disepakati. Form untuk mengangkat atau menonaktifkan Admin baru akan diaktifkan setelah Firestore Security Rules dan proses otorisasi server diperiksa, agar pengguna biasa tidak dapat menaikkan hak akses sendiri.</p></div></div>
         </section> : <section className="content-card employees-panel"><div className="section-heading"><div><h3>{activeSection}</h3><p>Modul ini belum dihubungkan ke koleksi data terkait.</p></div></div><p className="employee-state">Kita lanjutkan setelah struktur data modul ini dikonfirmasi. Bagian Data Karyawan sudah membaca koleksi <code>users</code>.</p></section>}
         <footer className="dashboard-footer">ABSEN CONTROL <span>·</span> Panel internal manajemen absensi</footer>
       </section>
