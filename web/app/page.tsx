@@ -10,12 +10,11 @@ import {
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { auth, db, firebaseConfigured } from "@/lib/firebase";
 
-type Role = "HRD" | "Manager" | "Owner" | "Admin";
+type Role = "Manager" | "Owner" | "Admin";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
 type EmployeeRecord = { id: string; uid: string; name: string; email: string; department: string; position: string; role: string; status: string; managerRefs: string[]; managerName: string };
 
 const roleDescriptions: Record<Role, string> = {
-  HRD: "Pengelolaan karyawan, absensi, dan pengajuan",
   Manager: "Pemantauan tim dan pengajuan sesuai wewenang",
   Owner: "Ringkasan operasional dan laporan perusahaan",
   Admin: "Akses penuh untuk pengaturan sistem dan akun",
@@ -68,10 +67,17 @@ export default function HomePage() {
       try {
         const adminDoc = await getDoc(doc(db, "controlAdmins", currentUser.uid));
         const data = adminDoc.data();
-        const allowedRoles: Role[] = ["HRD", "Manager", "Owner", "Admin"];
-        if (adminDoc.exists() && data?.active === true && allowedRoles.includes(data?.role)) {
+        // Only these three roles may access the web admin panel.
+        // Normalize case so "MANAGER" and "Manager" are treated consistently.
+        const roleByKey: Record<string, Role> = {
+          admin: "Admin",
+          manager: "Manager",
+          owner: "Owner",
+        };
+        const verifiedRole = roleByKey[String(data?.role ?? "").trim().toLowerCase()];
+        if (adminDoc.exists() && data?.active === true && verifiedRole) {
           setAccessProfile(data ?? {});
-          setRole(data.role as Role);
+          setRole(verifiedRole);
           setAccess("allowed");
         } else {
           setRole(null);
