@@ -44,6 +44,10 @@ export default function HomePage() {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [attendanceRows, setAttendanceRows] = useState<{id:string;name:string;date:string;checkIn:string;checkOut:string;status:string}[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceSearch, setAttendanceSearch] = useState("");
+  const [attendanceDate, setAttendanceDate] = useState(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
 
   useEffect(() => {
     if (!auth) {
@@ -170,6 +174,47 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [access, user, activeSection]);
 
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Absensi") return;
+    const currentDb = db;
+    let cancelled = false;
+    const loadAttendance = async () => {
+      setAttendanceLoading(true);
+      setError("");
+      try {
+        const snapshot = await getDocs(collection(currentDb, "attendance"));
+        const rows = snapshot.docs.map((item) => {
+          const data = item.data();
+          const pick = (...keys: string[]) => {
+            for (const key of keys) {
+              const value = data[key];
+              if (typeof value === "string" && value.trim()) return value.trim();
+            }
+            return "";
+          };
+          return {
+            id: item.id,
+            name: pick("nama", "name", "namaLengkap", "fullName") || "Tanpa nama",
+            date: pick("tanggal", "date", "attendanceDate"),
+            checkIn: pick("jamMasuk", "checkIn", "waktuMasuk", "clockIn"),
+            checkOut: pick("jamPulang", "checkOut", "waktuPulang", "clockOut"),
+            status: pick("status") || "Tidak diketahui",
+          };
+        }).sort((a, b) => b.date.localeCompare(a.date, "id") || a.name.localeCompare(b.name, "id"));
+        if (!cancelled) setAttendanceRows(rows);
+      } catch {
+        if (!cancelled) {
+          setAttendanceRows([]);
+          setError("Data absensi belum bisa dibaca. Pastikan akun admin diizinkan membaca koleksi attendance pada Firestore Security Rules.");
+        }
+      } finally {
+        if (!cancelled) setAttendanceLoading(false);
+      }
+    };
+    void loadAttendance();
+    return () => { cancelled = true; };
+  }, [access, user, activeSection]);
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!auth) return;
@@ -292,6 +337,16 @@ export default function HomePage() {
           {employees.length > 0 && employees.filter((employee) => [employee.name, employee.email, employee.department, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada karyawan yang cocok dengan pencarian.</p>}
           </div>}
           <p className="small-note">Tampilan ini hanya membaca data. Tambah, edit, dan hapus karyawan akan dibuat setelah format field di koleksi users dikonfirmasi.</p>
+        </section> : activeSection === "Absensi" ? <section className="content-card employees-panel">
+          <div className="section-heading"><div><h3>Rekap Absensi</h3><p>Data langsung dari koleksi <code>attendance</code> di Firestore.</p></div><span className="module-count">{attendanceRows.length} catatan</span></div>
+          <div className="employee-toolbar attendance-toolbar"><input aria-label="Cari absensi" placeholder="Cari nama, status, atau ID…" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} /><label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal absensi" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Reset filter</button></div>
+          {attendanceLoading ? <p className="employee-state">Memuat catatan absensi dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
+            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+          </tbody></table>
+          {attendanceRows.length === 0 && !attendanceLoading && <p className="employee-state">Belum ada catatan pada koleksi <code>attendance</code>.</p>}
+          {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
+          </div>}
+          <p className="small-note">Modul ini hanya membaca data absensi. Fitur koreksi atau perubahan catatan akan dibuat setelah aturan dan struktur data dikonfirmasi.</p>
         </section> : activeSection === "Dashboard" ? <>
         <section className="summary-grid" aria-label="Ringkasan">
           <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
