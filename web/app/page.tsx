@@ -55,6 +55,7 @@ export default function HomePage() {
   const [requestSearch, setRequestSearch] = useState("");
   const [requestStatus, setRequestStatus] = useState("Semua");
   const [requestReloadKey, setRequestReloadKey] = useState(0);
+  const [requestLoadedKey, setRequestLoadedKey] = useState(-1);
 
   useEffect(() => {
     if (!auth) {
@@ -263,7 +264,7 @@ export default function HomePage() {
   }, [access, user, activeSection]);
 
   useEffect(() => {
-    if (access !== "allowed" || !user || !db || activeSection !== "Pengajuan") return;
+    if (access !== "allowed" || !user || !db || activeSection !== "Pengajuan" || requestLoadedKey === requestReloadKey) return;
     const currentDb = db;
     let cancelled = false;
     const loadRequests = async () => {
@@ -302,7 +303,10 @@ export default function HomePage() {
             raw: data,
           } satisfies RequestRecord;
         }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt, "id"));
-        if (!cancelled) setRequestRows(rows);
+        if (!cancelled) {
+          setRequestRows(rows);
+          setRequestLoadedKey(requestReloadKey);
+        }
       } catch {
         if (!cancelled) {
           setRequestRows([]);
@@ -314,7 +318,7 @@ export default function HomePage() {
     };
     void loadRequests();
     return () => { cancelled = true; };
-  }, [access, user, activeSection, requestReloadKey]);
+  }, [access, user, activeSection, requestReloadKey, requestLoadedKey]);
 
   const profileRefs = [
     user?.uid,
