@@ -14,6 +14,7 @@ type Role = "Manager" | "Owner" | "Admin";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
 type EmployeeRecord = { id: string; uid: string; name: string; email: string; department: string; position: string; role: string; status: string; managerRefs: string[]; managerName: string };
 type RequestRecord = { id: string; employee: string; email: string; type: string; status: string; submittedAt: string; startDate: string; endDate: string; reason: string; raw: Record<string, unknown> };
+type ComplaintRecord = { id: string; employee: string; email: string; subject: string; message: string; status: string; updatedAt: string }; type ChatMessage = { id: string; text: string; sender: string; senderName: string; createdAt: string };
 
 const roleDescriptions: Record<Role, string> = {
   Manager: "Pemantauan tim dan pengajuan sesuai wewenang",
@@ -27,6 +28,7 @@ const menuItems = [
   { icon: "♧", title: "Struktur Organisasi", description: "Atasan, tim, dan bawahan" },
   { icon: "◷", title: "Absensi", description: "Rekap kehadiran karyawan" },
   { icon: "▤", title: "Pengajuan", description: "Izin, cuti, dan koreksi absensi" },
+  { icon: "✉", title: "Chat Pengaduan", description: "Percakapan dan tindak lanjut pengaduan karyawan" },
   { icon: "▥", title: "Laporan", description: "Rekap dan laporan kehadiran" },
   { icon: "⚙", title: "Pengaturan", description: "Akun, role, dan konfigurasi sistem" },
 ];
@@ -63,6 +65,13 @@ export default function HomePage() {
   const [requestStatus, setRequestStatus] = useState("Semua");
   const [requestReloadKey, setRequestReloadKey] = useState(0);
   const [requestLoadedKey, setRequestLoadedKey] = useState(-1);
+  const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
+  const [complaintsLoading, setComplaintsLoading] = useState(false);
+  const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatReply, setChatReply] = useState("");
+  const [chatSending, setChatSending] = useState(false);
 
   useEffect(() => {
     if (!auth) {
@@ -331,6 +340,48 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [access, user, activeSection, requestReloadKey, requestLoadedKey]);
 
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Chat Pengaduan") return;
+    let cancelled = false;
+    setComplaintsLoading(true);
+    getDocs(collection(db, "pengaduan")).then((snapshot) => {
+      const rows = snapshot.docs.map((item) => {
+        const data = item.data() as Record<string, unknown>;
+        const read = (...keys: string[]) => { for (const key of keys) { const value = data[key]; if (typeof value === "string" && value.trim()) return value.trim(); } return ""; };
+        const time = data.updatedAt ?? data.createdAt ?? data.timestamp;
+        const updatedAt = time && typeof time === "object" && "toDate" in time && typeof (time as {toDate?: unknown}).toDate === "function" ? (time as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : read("updatedAt", "createdAt", "tanggal", "timestamp");
+        return { id: item.id, employee: read("employeeName", "namaKaryawan", "nama", "name", "displayName", "email") || "Karyawan", email: read("employeeEmail", "email"), subject: read("subject", "judul", "title") || "Pengaduan karyawan", message: read("lastMessage", "message", "pesan", "description", "isi") || "Belum ada pesan", status: read("status") || "Baru", updatedAt };
+      }).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt, "id"));
+      if (!cancelled) { setComplaints(rows); setSelectedComplaintId((current) => current && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? null); }
+    }).catch(() => { if (!cancelled) setError("Data pengaduan belum bisa dibaca. Periksa Firestore Security Rules untuk koleksi pengaduan."); }).finally(() => { if (!cancelled) setComplaintsLoading(false); });
+    return () => { cancelled = true; };
+  }, [access, user, activeSection]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Chat Pengaduan" || !selectedComplaintId) { setChatMessages([]); return; }
+    let cancelled = false; setChatLoading(true);
+    getDocs(collection(db, "pengaduan", selectedComplaintId, "messages")).then((snapshot) => {
+      const rows = snapshot.docs.map((item) => { const data = item.data() as Record<string, unknown>; const rawTime = data.createdAt; const createdAt = rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function" ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : ""; return { id: item.id, text: String(data.text ?? data.message ?? data.pesan ?? ""), sender: String(data.sender ?? data.senderRole ?? "Karyawan"), senderName: String(data.senderName ?? data.namaPengirim ?? "Karyawan"), createdAt }; }).sort((a,b) => a.id.localeCompare(b.id));
+      if (!cancelled) setChatMessages(rows);
+    }).catch(() => { if (!cancelled) setError("Riwayat chat belum bisa dibaca. Pastikan aturan Firestore mengizinkan akses ke subkoleksi pengaduan/{id}/messages."); }).finally(() => { if (!cancelled) setChatLoading(false); });
+    return () => { cancelled = true; };
+  }, [access, user, activeSection, selectedComplaintId]);
+
+  const sendComplaintReply = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); const text = chatReply.trim();
+    if (!text || !selectedComplaintId || !db || !user || chatSending) return;
+    setChatSending(true); setError("");
+    try {
+      await addDoc(collection(db, "pengaduan", selectedComplaintId, "messages"), { text, sender: "Admin", senderName: user.displayName || user.email || "Admin", senderUid: user.uid, createdAt: serverTimestamp() });
+      await updateDoc(doc(db, "pengaduan", selectedComplaintId), { lastMessage: text, updatedAt: serverTimestamp(), status: "Dibalas", lastReplyBy: user.uid });
+      setChatReply("");
+      const snap = await getDocs(collection(db, "pengaduan", selectedComplaintId, "messages"));
+      setChatMessages(snap.docs.map((item) => { const data = item.data() as Record<string, unknown>; const rawTime = data.createdAt; const createdAt = rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function" ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : ""; return { id: item.id, text: String(data.text ?? data.message ?? data.pesan ?? ""), sender: String(data.sender ?? data.senderRole ?? "Karyawan"), senderName: String(data.senderName ?? data.namaPengirim ?? "Karyawan"), createdAt }; }));
+      setComplaints((old) => old.map((item) => item.id === selectedComplaintId ? { ...item, message: text, status: "Dibalas", updatedAt: "Baru saja" } : item));
+    } catch { setError("Balasan belum tersimpan. Periksa Firestore Security Rules untuk membuat pesan dan memperbarui dokumen pengaduan."); }
+    finally { setChatSending(false); }
+  };
+
   const profileRefs = [
     user?.uid,
     user?.email,
@@ -578,7 +629,12 @@ export default function HomePage() {
           <div><span className="welcome-kicker">RINGKASAN HARI INI</span><h2>Selamat datang kembali</h2><p>Pantau kehadiran dan tindak lanjut operasional dari satu tempat.</p></div>
           <div className="date-chip"><span className="date-chip-label">HARI INI</span><strong>{new Intl.DateTimeFormat("id-ID", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }).format(new Date())}</strong></div>
         </div>}
-        {activeSection === "Struktur Organisasi" ? <section className="content-card employees-panel organization-panel">
+        {activeSection === "Chat Pengaduan" ? <section className="content-card employees-panel complaints-panel">
+          <div className="section-heading"><div><h3>Chat Pengaduan</h3><p>Inbox pengaduan karyawan dari koleksi <code>pengaduan</code> di Firestore.</p></div><span className="module-count">{complaints.length} percakapan</span></div>
+          <div className="complaints-workspace"><aside className="complaint-inbox"><div className="complaint-inbox-heading"><strong>Daftar percakapan</strong><button type="button" className="logout-button" onClick={() => setActiveSection("Dashboard")}>Kembali</button></div>{complaintsLoading ? <p className="employee-state">Memuat pengaduan…</p> : complaints.length === 0 ? <p className="employee-state">Belum ada pengaduan. Dokumen akan tampil setelah koleksi pengaduan dibuat dan aplikasi karyawan dihubungkan.</p> : complaints.map((item) => <button type="button" key={item.id} className={`complaint-thread ${selectedComplaintId === item.id ? "selected" : ""}`} onClick={() => setSelectedComplaintId(item.id)}><span className="complaint-avatar">{item.employee.slice(0,1).toUpperCase()}</span><span className="complaint-thread-copy"><strong>{item.employee}</strong><small>{item.subject}</small><span>{item.message}</span></span><span className="complaint-status">{item.status}</span></button>)}</aside>
+          <div className="complaint-chat">{selectedComplaintId && complaints.find((item) => item.id === selectedComplaintId) ? <><div className="complaint-chat-header"><div><h4>{complaints.find((item) => item.id === selectedComplaintId)?.subject}</h4><p>{complaints.find((item) => item.id === selectedComplaintId)?.employee} · {complaints.find((item) => item.id === selectedComplaintId)?.email || "Email tidak tersedia"}</p></div><span className="complaint-status">{complaints.find((item) => item.id === selectedComplaintId)?.status}</span></div><div className="complaint-messages">{chatLoading ? <p className="employee-state">Memuat riwayat pesan…</p> : chatMessages.length === 0 ? <div className="complaint-empty"><span>✉</span><strong>Belum ada riwayat chat</strong><p>Balasan akan tersimpan ke subkoleksi <code>messages</code>.</p></div> : chatMessages.map((message) => <article key={message.id} className={`chat-bubble ${/admin/i.test(message.sender) ? "admin-message" : ""}`}><div><strong>{message.senderName}</strong><small>{message.createdAt}</small></div><p>{message.text}</p></article>)}</div><form className="complaint-reply-form" onSubmit={sendComplaintReply}><textarea aria-label="Tulis balasan" placeholder="Tulis balasan untuk karyawan…" value={chatReply} onChange={(event) => setChatReply(event.target.value)} rows={2} required /><button className="primary-button" type="submit" disabled={chatSending || !chatReply.trim()}>{chatSending ? "Mengirim…" : "Kirim balasan"}</button></form></> : <div className="complaint-empty"><span>✉</span><strong>Belum ada percakapan</strong><p>Pengaduan akan tampil setelah dokumen dibuat di koleksi <code>pengaduan</code>.</p></div>}</div></div>
+          <p className="small-note">Struktur web: dokumen <code>pengaduan/ID</code> dan subkoleksi <code>messages</code>. Firestore Security Rules harus mengizinkan Admin membaca/menulis. Aplikasi karyawan masih perlu diintegrasikan agar bisa mengirim pengaduan dan membaca balasan.</p>
+        </section> : activeSection === "Struktur Organisasi" ? <section className="content-card employees-panel organization-panel">
           <div className="section-heading"><div><h3>Struktur Organisasi</h3><p>Hubungan atasan, tim, dan bawahan dari data koleksi <code>users</code>.</p></div><span className="module-count">{organizationEmployees.length} orang</span></div>
           <div className="organization-summary">
             <article><span>Divisi</span><strong>{organizationDepartments.length}</strong></article>
