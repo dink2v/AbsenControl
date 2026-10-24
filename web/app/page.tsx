@@ -7,7 +7,7 @@ import {
   signOut,
   User,
 } from "firebase/auth";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db, firebaseConfigured } from "@/lib/firebase";
 
 type Role = "Manager" | "Owner" | "Admin";
@@ -46,6 +46,10 @@ export default function HomePage() {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeeFormOpen, setEmployeeFormOpen] = useState(false);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+  const [employeeSaving, setEmployeeSaving] = useState(false);
+  const [employeeForm, setEmployeeForm] = useState({ name: "", email: "", department: "", position: "", status: "Aktif" });
   const [attendanceRows, setAttendanceRows] = useState<{id:string;name:string;date:string;checkIn:string;checkOut:string;status:string}[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSearch, setAttendanceSearch] = useState("");
@@ -393,6 +397,50 @@ export default function HomePage() {
   const organizationDepartments = Array.from(new Set(organizationEmployees.map((employee) => employee.department || "Belum ditentukan"))).sort((a, b) => a.localeCompare(b, "id"));
   const organizationSupervisors = Array.from(new Map(organizationEmployees.map((employee) => supervisorOf(employee)).filter((employee): employee is EmployeeRecord => Boolean(employee)).map((employee) => [employee.id, employee])).values()).sort((a, b) => a.name.localeCompare(b.name, "id"));
 
+  function openEmployeeForm(employee?: EmployeeRecord) {
+    setEditingEmployeeId(employee?.id ?? null);
+    setEmployeeForm({ name: employee?.name === "Tanpa nama" ? "" : employee?.name ?? "", email: employee?.email ?? "", department: employee?.department ?? "", position: employee?.position ?? "", status: employee?.status ?? "Aktif" });
+    setEmployeeFormOpen(true);
+    setError("");
+  }
+
+  async function saveEmployee(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!db || !user || (role !== "Admin" && role !== "Owner")) { setError("Hanya Admin atau Owner yang boleh mengelola data karyawan."); return; }
+    const name = employeeForm.name.trim();
+    const employeeEmail = employeeForm.email.trim().toLowerCase();
+    if (!name) { setError("Nama karyawan wajib diisi."); return; }
+    if (employeeEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employeeEmail)) { setError("Format email karyawan tidak valid."); return; }
+    setEmployeeSaving(true);
+    setError("");
+    try {
+      const payload = { nama: name, name, email: employeeEmail, departemen: employeeForm.department.trim(), jabatan: employeeForm.position.trim(), status: employeeForm.status, updatedAt: serverTimestamp() };
+      if (editingEmployeeId) await updateDoc(doc(db, "users", editingEmployeeId), payload);
+      else await addDoc(collection(db, "users"), { ...payload, createdAt: serverTimestamp() });
+      setEmployeeFormOpen(false);
+      setEmployees((current) => {
+        const row: EmployeeRecord = { id: editingEmployeeId ?? "pending", uid: editingEmployeeId ?? "pending", name, email: employeeEmail, department: employeeForm.department.trim(), position: employeeForm.position.trim(), role: editingEmployeeId ? current.find((item) => item.id === editingEmployeeId)?.role ?? "Karyawan" : "Karyawan", status: employeeForm.status, managerRefs: [], managerName: "" };
+        return (editingEmployeeId ? current.map((item) => item.id === editingEmployeeId ? { ...item, ...row } : item) : [...current, row]).sort((a,b) => a.name.localeCompare(b.name, "id"));
+      });
+      setError(editingEmployeeId ? "Data karyawan berhasil diperbarui." : "Karyawan berhasil ditambahkan.");
+      setActiveSection("Dashboard");
+      window.setTimeout(() => setActiveSection("Data Karyawan"), 0);
+    } catch {
+      setError("Gagal menyimpan data karyawan. Periksa koneksi dan Firestore Security Rules untuk koleksi users.");
+    } finally { setEmployeeSaving(false); }
+  }
+
+  async function removeEmployee(employee: EmployeeRecord) {
+    if (!db || (role !== "Admin" && role !== "Owner")) { setError("Hanya Admin atau Owner yang boleh menghapus data karyawan."); return; }
+    if (!window.confirm("Hapus data karyawan " + employee.name + "? Tindakan ini tidak dapat dibatalkan.")) return;
+    setError("");
+    try {
+      await deleteDoc(doc(db, "users", employee.id));
+      setEmployees((current) => current.filter((item) => item.id !== employee.id));
+      setError("Data karyawan berhasil dihapus.");
+    } catch { setError("Gagal menghapus data karyawan. Periksa Firestore Security Rules untuk koleksi users."); }
+  }
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!auth) return;
@@ -561,16 +609,28 @@ export default function HomePage() {
           </div>}
           <p className="small-note">Struktur ini mencocokkan nilai <code>atasan</code> dengan nama, email, UID, atau ID dokumen pengguna. Untuk menghindari nama yang sama, lebih aman mengisi <code>atasanUid</code> atau <code>supervisorUid</code> dengan UID atasan yang benar. Nilai penanda seperti <code>kosong</code> tidak dianggap sebagai atasan. Hak akses tetap mengikuti role akun.</p>
         </section> : activeSection === "Data Karyawan" ? <section className="content-card employees-panel">
-          <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><span className="module-count">{employees.length} karyawan</span></div>
+          <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><div className="employee-heading-actions"><span className="module-count">{employees.length} karyawan</span>{(role === "Admin" || role === "Owner") && <button type="button" className="primary-button" onClick={() => openEmployeeForm()}>+ Tambah karyawan</button>}</div></div>
+          {employeeFormOpen && <form className="employee-form" onSubmit={saveEmployee}>
+            <div className="employee-form-heading"><div><h4>{editingEmployeeId ? "Edit karyawan" : "Tambah karyawan"}</h4><p>Perubahan disimpan ke koleksi users di Firestore.</p></div><button type="button" className="logout-button" onClick={() => setEmployeeFormOpen(false)} disabled={employeeSaving}>Batal</button></div>
+            <div className="employee-form-grid">
+              <label>Nama lengkap *<input required value={employeeForm.name} onChange={(event) => setEmployeeForm((form) => ({...form, name:event.target.value}))} placeholder="Nama karyawan" /></label>
+              <label>Email<input type="email" value={employeeForm.email} onChange={(event) => setEmployeeForm((form) => ({...form, email:event.target.value}))} placeholder="nama@perusahaan.com" /></label>
+              <label>Divisi<input value={employeeForm.department} onChange={(event) => setEmployeeForm((form) => ({...form, department:event.target.value}))} placeholder="Contoh: Operasional" /></label>
+              <label>Jabatan<input value={employeeForm.position} onChange={(event) => setEmployeeForm((form) => ({...form, position:event.target.value}))} placeholder="Contoh: Staff" /></label>
+              <label>Status<select value={employeeForm.status} onChange={(event) => setEmployeeForm((form) => ({...form, status:event.target.value}))}><option>Aktif</option><option>Nonaktif</option></select></label>
+            </div>
+            <p className="small-note">Role akun tidak diubah dari formulir ini. Pembuatan akun login Firebase dan pemberian role dilakukan melalui alur terpisah.</p>
+            <div className="employee-form-actions"><button className="primary-button" type="submit" disabled={employeeSaving}>{employeeSaving ? "Menyimpan…" : editingEmployeeId ? "Simpan perubahan" : "Simpan karyawan"}</button></div>
+          </form>}
           <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
-          {employeesLoading ? <p className="employee-state">Memuat data karyawan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Nama</th><th>Email</th><th>Jabatan / Divisi</th><th>Role</th><th>Status</th></tr></thead><tbody>
-            {visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{[employee.position, employee.department].filter(Boolean).join(" · ") || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td></tr>)}
+          {employeesLoading ? <p className="employee-state">Memuat data karyawan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Nama</th><th>Email</th><th>Jabatan / Divisi</th><th>Role</th><th>Status</th>{(role === "Admin" || role === "Owner") && <th>Aksi</th>}</tr></thead><tbody>
+            {visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{[employee.position, employee.department].filter(Boolean).join(" · ") || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td>{(role === "Admin" || role === "Owner") && <td><div className="employee-row-actions"><button type="button" className="logout-button" onClick={() => openEmployeeForm(employee)}>Edit</button><button type="button" className="employee-delete-button" onClick={() => void removeEmployee(employee)}>Hapus</button></div></td>}</tr>)}
           </tbody></table>
           {visibleEmployees.length === 0 && !employeesLoading && <p className="employee-state">{role === "Manager" && !managerIdentityFound ? "Akun Manager belum bisa dicocokkan dengan data karyawan. Hubungkan email/UID akun ke dokumen users agar hierarki tim dapat ditampilkan." : "Belum ada karyawan dalam cakupan akses ini."}</p>}
           {visibleEmployees.length > 0 && visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada karyawan yang cocok dengan pencarian.</p>}
           </div>}
           {role === "Manager" && <p className="small-note">Akses Manager dibatasi ke seluruh hierarki bawahan langsung dan tidak langsung. Hubungan tim dibaca dari field atasan/manager pada dokumen karyawan.</p>}
-          <p className="small-note">Tampilan ini hanya membaca data. Tambah, edit, dan hapus karyawan akan dibuat setelah format field di koleksi users dikonfirmasi.</p>
+          <p className="small-note">Fitur tambah, edit, dan hapus tersedia untuk Admin dan Owner. Penghapusan menghapus dokumen users saja, bukan akun Firebase Authentication atau riwayat absensi.</p>
         </section> : activeSection === "Absensi" ? <section className="content-card employees-panel">
           <div className="section-heading"><div><h3>Rekap Absensi</h3><p>Data langsung dari koleksi <code>attendance</code> di Firestore.</p></div><span className="module-count">{attendanceRows.length} catatan</span></div>
           <div className="employee-toolbar attendance-toolbar"><input aria-label="Cari absensi" placeholder="Cari nama, status, atau ID…" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} /><label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal absensi" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Reset filter</button></div>
