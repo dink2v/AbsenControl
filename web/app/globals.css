@@ -1144,3 +1144,46 @@ img, svg, video, canvas { max-width: 100%; }
   .employee-form-actions { grid-template-columns: minmax(0, 1fr); }
   .employee-form-actions button { width: 100%; }
 }
+
+
+/* Mobile overflow correction: preserve the existing visual design while keeping the dashboard inside the viewport. */
+html, body { width: 100%; max-width: 100%; overflow-x: clip; }
+.dashboard-layout { width: 100%; max-width: 100%; min-width: 0; }
+.dashboard-main, .page-heading, .topbar, .welcome-row, .content-grid, .content-card, .employees-panel { min-width: 0; max-width: 100%; }
+.dashboard-main { overflow-wrap: anywhere; }
+@media (min-width: 761px) and (max-width: 1100px) {
+  .dashboard-layout { grid-template-columns: 200px minmax(0, 1fr); }
+  .sidebar { padding-left: 12px; padding-right: 12px; }
+  .dashboard-main { padding-left: 20px; padding-right: 20px; }
+}
+@media (max-width: 760px) {
+  .dashboard-layout { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .sidebar { width: 100%; min-width: 0; min-height: auto; padding: 12px 12px 10px; }
+  .sidebar .brand-lockup { min-width: 0; padding: 0 0 12px; }
+  .sidebar .brand-lockup > span { overflow-wrap: anywhere; }
+  .nav-list { display: flex; width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+  .nav-item { flex: 0 0 auto; max-width: 85vw; }
+  .dashboard-main { width: 100%; max-width: 100%; min-width: 0; padding: 16px 12px 12px; }
+  .topbar { width: 100%; gap: 10px; }
+  .topbar h1 { overflow-wrap: anywhere; }
+  .account-area { min-width: 0; flex-shrink: 0; }
+  .welcome-row { width: 100%; padding: 18px 16px; border-radius: 16px; }
+  .welcome-row h2 { font-size: clamp(24px, 7vw, 32px); overflow-wrap: anywhere; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-grid { grid-template-columns: minmax(0, 1fr); }
+  .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-card { padding: 13px; }
+  .request-summary, .report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-hero, .settings-account-card { flex-wrap: wrap; }
+  .employee-table-wrap { max-width: 100%; overflow-x: auto; }
+}
+@media (max-width: 360px) {
+  .dashboard-main { padding-left: 9px; padding-right: 9px; }
+  .sidebar { padding-left: 9px; padding-right: 9px; }
+  .topbar h1 { font-size: 19px; }
+  .welcome-row { padding: 15px 12px; }
+  .content-card { padding: 10px; }
+  .summary-card { padding: 10px; }
+  .summary-card>strong { font-size: 22px; }
+  .module-grid { grid-template-columns: minmax(0, 1fr); }
+}
