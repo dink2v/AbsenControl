@@ -9,7 +9,7 @@ import {
   User,
 } from "firebase/auth";
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
-import { auth, db, firebaseConfigured } from "@/lib/firebase";
+import { auth, db, firebaseConfigured } from "../lib/firebase";
 
 type Role = "Manager" | "Owner" | "Admin";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
