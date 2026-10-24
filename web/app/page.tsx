@@ -1,7 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { getApp, getApps, initializeApp } from "firebase/app";
 import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -52,7 +56,7 @@ export default function HomePage() {
   const [employeeFormOpen, setEmployeeFormOpen] = useState(false);
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [employeeSaving, setEmployeeSaving] = useState(false);
-  const [employeeForm, setEmployeeForm] = useState({ name: "", email: "", department: "", position: "", status: "Aktif" });
+  const [employeeForm, setEmployeeForm] = useState({ name: "", email: "", password: "", department: "", position: "", status: "Aktif" });
   const [attendanceRows, setAttendanceRows] = useState<{id:string;name:string;date:string;checkIn:string;checkOut:string;status:string}[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSearch, setAttendanceSearch] = useState("");
@@ -462,7 +466,7 @@ export default function HomePage() {
 
   function openEmployeeForm(employee?: EmployeeRecord) {
     setEditingEmployeeId(employee?.id ?? null);
-    setEmployeeForm({ name: employee?.name === "Tanpa nama" ? "" : employee?.name ?? "", email: employee?.email ?? "", department: employee?.department ?? "", position: employee?.position ?? "", status: employee?.status ?? "Aktif" });
+    setEmployeeForm({ name: employee?.name === "Tanpa nama" ? "" : employee?.name ?? "", email: employee?.email ?? "", password: "", department: employee?.department ?? "", position: employee?.position ?? "", status: employee?.status ?? "Aktif" });
     setEmployeeFormOpen(true);
     setError("");
   }
@@ -473,24 +477,61 @@ export default function HomePage() {
     const name = employeeForm.name.trim();
     const employeeEmail = employeeForm.email.trim().toLowerCase();
     if (!name) { setError("Nama karyawan wajib diisi."); return; }
-    if (employeeEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employeeEmail)) { setError("Format email karyawan tidak valid."); return; }
+    if (!employeeEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(employeeEmail)) { setError("Email valid wajib diisi untuk akun login karyawan."); return; }
+    if (!editingEmployeeId && employeeForm.password.length < 6) { setError("Password awal minimal 6 karakter."); return; }
     setEmployeeSaving(true);
     setError("");
+    let createdAuthUser: import("firebase/auth").User | null = null;
+    let secondaryAuth: ReturnType<typeof getAuth> | null = null;
     try {
-      const payload = { nama: name, name, email: employeeEmail, departemen: employeeForm.department.trim(), jabatan: employeeForm.position.trim(), status: employeeForm.status, updatedAt: serverTimestamp() };
-      if (editingEmployeeId) await updateDoc(doc(db, "users", editingEmployeeId), payload);
-      else await addDoc(collection(db, "users"), { ...payload, createdAt: serverTimestamp() });
+      const commonPayload = {
+        nama: name, name, email: employeeEmail,
+        departemen: employeeForm.department.trim(),
+        jabatan: employeeForm.position.trim(),
+        status: employeeForm.status,
+        updatedAt: serverTimestamp(),
+      };
+      if (editingEmployeeId) {
+        await updateDoc(doc(db, "users", editingEmployeeId), commonPayload);
+      } else {
+        // Use a named secondary Firebase app so creating a staff account won't sign out the admin.
+        const secondaryAppName = "absen-control-employee-creator";
+        const secondaryApp = getApps().find((app) => app.name === secondaryAppName)
+          ?? initializeApp(getApp().options, secondaryAppName);
+        secondaryAuth = getAuth(secondaryApp);
+        const credential = await createUserWithEmailAndPassword(secondaryAuth, employeeEmail, employeeForm.password);
+        createdAuthUser = credential.user;
+        await setDoc(doc(db, "users", credential.user.uid), {
+          ...commonPayload, uid: credential.user.uid, role: "Karyawan", createdAt: serverTimestamp(),
+        });
+        await signOut(secondaryAuth);
+      }
+      const id = editingEmployeeId ?? createdAuthUser?.uid ?? "";
       setEmployeeFormOpen(false);
+      setEmployeeForm({ name: "", email: "", password: "", department: "", position: "", status: "Aktif" });
       setEmployees((current) => {
-        const row: EmployeeRecord = { id: editingEmployeeId ?? "pending", uid: editingEmployeeId ?? "pending", name, email: employeeEmail, department: employeeForm.department.trim(), position: employeeForm.position.trim(), role: editingEmployeeId ? current.find((item) => item.id === editingEmployeeId)?.role ?? "Karyawan" : "Karyawan", status: employeeForm.status, managerRefs: [], managerName: "" };
+        const row: EmployeeRecord = {
+          id, uid: id, name, email: employeeEmail,
+          department: employeeForm.department.trim(), position: employeeForm.position.trim(),
+          role: editingEmployeeId ? current.find((item) => item.id === editingEmployeeId)?.role ?? "Karyawan" : "Karyawan",
+          status: employeeForm.status, managerRefs: [], managerName: "",
+        };
         return (editingEmployeeId ? current.map((item) => item.id === editingEmployeeId ? { ...item, ...row } : item) : [...current, row]).sort((a,b) => a.name.localeCompare(b.name, "id"));
       });
-      setError(editingEmployeeId ? "Data karyawan berhasil diperbarui." : "Karyawan berhasil ditambahkan.");
+      setError(editingEmployeeId ? "Data karyawan berhasil diperbarui." : "Akun login dan data karyawan berhasil dibuat.");
       setActiveSection("Dashboard");
       window.setTimeout(() => setActiveSection("Data Karyawan"), 0);
-    } catch {
-      setError("Gagal menyimpan data karyawan. Periksa koneksi dan Firestore Security Rules untuk koleksi users.");
-    } finally { setEmployeeSaving(false); }
+    } catch (cause: unknown) {
+      if (createdAuthUser) { try { await deleteUser(createdAuthUser); } catch { /* preserve original failure */ } }
+      const code = typeof cause === "object" && cause !== null && "code" in cause ? String((cause as {code?: unknown}).code ?? "") : "";
+      if (code === "auth/email-already-in-use") setError("Email ini sudah terdaftar di Firebase Authentication. Gunakan email lain atau hubungkan akun yang sudah ada.");
+      else if (code === "auth/weak-password") setError("Password terlalu lemah. Gunakan minimal 6 karakter.");
+      else if (code === "auth/operation-not-allowed") setError("Login Email/Password belum diaktifkan di Firebase Authentication.");
+      else setError("Gagal membuat akun atau menyimpan data karyawan. Periksa koneksi, Firebase Authentication, dan Firestore Rules untuk koleksi users.");
+    } finally {
+      if (secondaryAuth) await signOut(secondaryAuth).catch(() => undefined);
+      setEmployeeSaving(false);
+    }
   }
 
   async function removeEmployee(employee: EmployeeRecord) {
@@ -757,12 +798,13 @@ export default function HomePage() {
             <div className="employee-form-heading"><div><h4>{editingEmployeeId ? "Edit karyawan" : "Tambah karyawan"}</h4><p>Perubahan disimpan ke koleksi users di Firestore.</p></div><button type="button" className="logout-button" onClick={() => setEmployeeFormOpen(false)} disabled={employeeSaving}>Batal</button></div>
             <div className="employee-form-grid">
               <label>Nama lengkap *<input required value={employeeForm.name} onChange={(event) => setEmployeeForm((form) => ({...form, name:event.target.value}))} placeholder="Nama karyawan" /></label>
-              <label>Email<input type="email" value={employeeForm.email} onChange={(event) => setEmployeeForm((form) => ({...form, email:event.target.value}))} placeholder="nama@perusahaan.com" /></label>
+              <label>Email login *<input type="email" required value={employeeForm.email} readOnly={Boolean(editingEmployeeId)} onChange={(event) => setEmployeeForm((form) => ({...form, email:event.target.value}))} placeholder="nama@perusahaan.com" /></label>
+              {!editingEmployeeId && <label>Password awal *<input type="password" required minLength={6} autoComplete="new-password" value={employeeForm.password} onChange={(event) => setEmployeeForm((form) => ({...form, password:event.target.value}))} placeholder="Minimal 6 karakter" /></label>}
               <label>Divisi<input value={employeeForm.department} onChange={(event) => setEmployeeForm((form) => ({...form, department:event.target.value}))} placeholder="Contoh: Operasional" /></label>
               <label>Jabatan<input value={employeeForm.position} onChange={(event) => setEmployeeForm((form) => ({...form, position:event.target.value}))} placeholder="Contoh: Staff" /></label>
               <label>Status<select value={employeeForm.status} onChange={(event) => setEmployeeForm((form) => ({...form, status:event.target.value}))}><option>Aktif</option><option>Nonaktif</option></select></label>
             </div>
-            <p className="small-note">Role akun tidak diubah dari formulir ini. Pembuatan akun login Firebase dan pemberian role dilakukan melalui alur terpisah.</p>
+            <p className="small-note">Password hanya digunakan untuk membuat akun Firebase Authentication dan tidak disimpan di Firestore. Akun baru mendapat role Karyawan. Email akun yang sudah ada tidak diubah dari formulir ini.</p>
             <div className="employee-form-actions"><button className="primary-button" type="submit" disabled={employeeSaving}>{employeeSaving ? "Menyimpan…" : editingEmployeeId ? "Simpan perubahan" : "Simpan karyawan"}</button></div>
           </form>}
           <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
