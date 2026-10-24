@@ -477,7 +477,7 @@ export default function HomePage() {
     const name = employeeForm.name.trim();
     const employeeEmail = employeeForm.email.trim().toLowerCase();
     if (!name) { setError("Nama karyawan wajib diisi."); return; }
-    if (!employeeEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(employeeEmail)) { setError("Email valid wajib diisi untuk akun login karyawan."); return; }
+    if (!employeeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employeeEmail)) { setError("Email valid wajib diisi untuk akun login karyawan."); return; }
     if (!editingEmployeeId && employeeForm.password.length < 6) { setError("Password awal minimal 6 karakter."); return; }
     setEmployeeSaving(true);
     setError("");
