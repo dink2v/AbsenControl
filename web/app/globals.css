@@ -1300,3 +1300,41 @@ html, body { width: 100%; max-width: 100%; overflow-x: clip; }
   }
   .content-grid { grid-template-columns: minmax(0, 1fr) !important; }
 }
+
+/* Desktop width correction: the sidebar must match its grid track and
+   dashboard children must be allowed to shrink inside the viewport. */
+@media screen and (min-width: 1101px) {
+  .dashboard-layout {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: 252px minmax(0, 1fr);
+    overflow-x: clip;
+  }
+  .dashboard-layout > .sidebar {
+    box-sizing: border-box;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+  .dashboard-layout > .dashboard-main {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+  .dashboard-main > *,
+  .dashboard-main .content-grid > *,
+  .dashboard-main .summary-grid > *,
+  .dashboard-main .topbar > *,
+  .dashboard-main .welcome-row > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .dashboard-main .content-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, .8fr);
+  }
+  .employee-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
