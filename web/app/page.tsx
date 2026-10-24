@@ -25,7 +25,6 @@ const roleDescriptions: Record<Role, string> = {
 const menuItems = [
   { icon: "▦", title: "Dashboard", description: "Ringkasan operasional" },
   { icon: "♙", title: "Data Karyawan", description: "Daftar dan informasi karyawan" },
-  { icon: "♧", title: "Struktur Organisasi", description: "Atasan, tim, dan bawahan" },
   { icon: "◷", title: "Absensi", description: "Rekap kehadiran karyawan" },
   { icon: "▤", title: "Pengajuan", description: "Izin, cuti, dan koreksi absensi" },
   { icon: "✉", title: "Chat Pengaduan", description: "Percakapan dan tindak lanjut pengaduan karyawan" },
@@ -665,7 +664,7 @@ export default function HomePage() {
           </div>}
           <p className="small-note">Struktur ini mencocokkan nilai <code>atasan</code> dengan nama, email, UID, atau ID dokumen pengguna. Untuk menghindari nama yang sama, lebih aman mengisi <code>atasanUid</code> atau <code>supervisorUid</code> dengan UID atasan yang benar. Nilai penanda seperti <code>kosong</code> tidak dianggap sebagai atasan. Hak akses tetap mengikuti role akun.</p>
         </section> : activeSection === "Data Karyawan" ? <section className="content-card employees-panel">
-          <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><div className="employee-heading-actions"><span className="module-count">{employees.length} karyawan</span>{(role === "Admin" || role === "Owner") && <button type="button" className="primary-button" onClick={() => openEmployeeForm()}>+ Tambah karyawan</button>}</div></div>
+          <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><div className="employee-heading-actions"><span className="module-count">{employees.length} karyawan</span><button type="button" className="logout-button" onClick={() => setActiveSection("Struktur Organisasi")}>Lihat Struktur Organisasi</button>{(role === "Admin" || role === "Owner") && <button type="button" className="primary-button" onClick={() => openEmployeeForm()}>+ Tambah karyawan</button>}</div></div>
           {employeeFormOpen && <form className="employee-form" onSubmit={saveEmployee}>
             <div className="employee-form-heading"><div><h4>{editingEmployeeId ? "Edit karyawan" : "Tambah karyawan"}</h4><p>Perubahan disimpan ke koleksi users di Firestore.</p></div><button type="button" className="logout-button" onClick={() => setEmployeeFormOpen(false)} disabled={employeeSaving}>Batal</button></div>
             <div className="employee-form-grid">
