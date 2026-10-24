@@ -987,3 +987,74 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     transition: none !important;
   }
 }
+
+
+/* Compact density pass — retain current layout, colors and navigation */
+:root { --ui-control-height: 36px; }
+.dashboard-layout { grid-template-columns: 224px minmax(0, 1fr); }
+.sidebar { padding: 22px 14px 16px; }
+.sidebar .brand-lockup { padding-bottom: 30px; }
+.nav-item { height: 40px; gap: 10px; font-size: 11px; }
+.dashboard-main { padding-top: 23px; }
+.topbar { padding-bottom: 18px; }
+.topbar h1 { font-size: 22px; }
+.welcome-row { padding: 22px clamp(20px, 2.4vw, 30px); min-height: 138px; margin-top: 20px; margin-bottom: 15px; border-radius: 18px; }
+.welcome-row h2 { font-size: clamp(25px, 2.7vw, 36px); }
+.summary-grid { gap: 10px; }
+.summary-card { padding: 13px 14px; border-radius: 14px; }
+.summary-card > strong { font-size: 25px; margin: 9px 0 3px; }
+.summary-icon { width: 27px; height: 27px; border-radius: 8px; }
+.content-grid { gap: 12px; margin-top: 14px; }
+.content-card { padding: 16px; border-radius: 16px; }
+.section-heading { margin-bottom: 14px; }
+.module-grid { gap: 8px; }
+.module-tile { min-height: 116px; padding: 11px; border-radius: 11px; }
+.module-icon { width: 28px; height: 28px; margin-bottom: 9px; font-size: 15px; }
+.organization-summary { gap: 8px; margin-bottom: 16px; }
+.organization-summary article { padding: 11px; }
+.organization-summary article strong { font-size: 21px; }
+.request-summary, .report-summary { gap: 9px; }
+.request-summary article, .report-summary article { padding: 13px 14px; }
+.request-summary article span, .report-summary article span { font-size: 11px; }
+.request-summary article strong, .report-summary article strong { font-size: 24px; }
+.settings-panel { gap: 14px; }
+.settings-hero { padding: 18px; border-radius: 14px; }
+.settings-hero-icon { width: 46px; height: 46px; border-radius: 12px; font-size: 21px; }
+.employee-form { margin: 14px 0; padding: 16px; }
+.employee-form-grid { gap: 11px; }
+.employee-form-grid label { font-size: 12px; gap: 5px; }
+.employee-form-grid input, .employee-form-grid select { min-height: 36px; padding: 8px 10px; }
+.employee-table { font-size: 10px; }
+.employee-table th { font-size: 9px; }
+.employee-table th, .employee-table td { padding: 9px 10px; }
+.employee-table td strong { font-size: 10px; }
+.employee-toolbar input, .attendance-date-label input { height: 36px; }
+.employee-row-actions button, .employee-heading-actions button, .employee-form-actions button { min-height: 32px; font-size: 11px; }
+.dashboard-footer { padding-top: 17px; }
+@media (max-width: 1100px) {
+  .dashboard-layout { grid-template-columns: 200px minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .dashboard-layout { grid-template-columns: 1fr; }
+  .sidebar { padding: 12px 13px; }
+  .sidebar .brand-lockup { padding-bottom: 11px; }
+  .nav-item { height: 36px; padding: 0 9px; }
+  .dashboard-main { padding: 15px 12px 12px; }
+  .topbar { padding-bottom: 14px; }
+  .topbar h1 { font-size: 20px; }
+  .welcome-row { padding: 17px; min-height: 0; margin: 16px 0 12px; border-radius: 14px; }
+  .welcome-row h2 { font-size: clamp(24px, 7vw, 31px); }
+  .summary-grid { gap: 8px; }
+  .summary-card { padding: 10px; border-radius: 11px; }
+  .summary-card > strong { font-size: 22px; }
+  .summary-top { font-size: 8px; }
+  .summary-icon { width: 24px; height: 24px; font-size: 13px; }
+  .content-grid { gap: 10px; margin-top: 11px; }
+  .content-card { padding: 12px; border-radius: 13px; }
+  .section-heading { margin-bottom: 11px; }
+  .module-tile { min-height: 108px; padding: 9px; }
+  .employee-form { padding: 12px; }
+  .employee-table th, .employee-table td { padding: 8px; }
+  .organization-summary article { padding: 9px 10px; }
+  .request-summary article, .report-summary article { padding: 10px; }
+}
