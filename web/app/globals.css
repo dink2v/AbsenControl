@@ -1408,3 +1408,19 @@ html, body { width: 100%; max-width: 100%; overflow-x: clip; }
 .settings-chip{display:inline-block;background:#f2f5fa;color:#6e7b91;border-radius:6px;padding:5px 7px;font-size:9px;font-weight:700}
 .settings-option-arrow{color:#8190a8;font-size:16px;padding:4px}
 @media(max-width:700px){.settings-hero{align-items:flex-start;flex-wrap:wrap;padding:14px}.settings-status{margin-left:58px}.settings-account-card{align-items:flex-start;flex-wrap:wrap}.settings-role{margin-left:56px}.settings-action-grid{grid-template-columns:minmax(0,1fr)}.settings-action-card{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start}.settings-action-card .settings-action-button{grid-column:1/-1;width:100%}.settings-option{padding:12px;gap:9px}}
+
+
+/* Keep the new settings controls aligned with ABSEN CONTROL's Forest Ink palette. */
+.settings-hero{background:var(--forest);border-color:var(--forest);border-radius:0;color:#fff}
+.settings-hero-icon,.settings-action-icon{background:#354536;color:#e4ecde;border-radius:8px}
+.settings-eyebrow{color:#c0cbb9}
+.settings-status{background:#354536;color:#e4ecde;border:1px solid #52634e;border-radius:5px}
+.settings-status i{background:#a6c59c}
+.settings-account-avatar{background:#dce6d7;color:var(--forest)}
+.settings-role{background:#e9eee7;color:#426047;border:1px solid #d9e2d4;border-radius:5px}
+.settings-action-button{background:var(--forest);border:1px solid var(--forest);border-radius:7px;color:#fff}
+.settings-action-button:hover{background:#354536}
+.settings-action-button.secondary{background:transparent;color:var(--forest);border-color:#d3d6cc}
+.settings-feedback{background:#f1f3ed;border-color:#d9e2d4;color:#426047;border-radius:8px}
+.settings-chip{background:#f1f3ed;color:#61705a;border:1px solid #e0e6da;border-radius:4px}
+.settings-action-card,.settings-account-card,.settings-option{border-radius:8px}
