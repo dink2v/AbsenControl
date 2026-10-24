@@ -89,6 +89,9 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
     var dataRows by remember { mutableStateOf(emptyList<Pair<String, String>>()) }
     var dataLoading by remember { mutableStateOf(false) }
     var dataError by remember { mutableStateOf("") }
+    var showEmployeeForm by remember { mutableStateOf(false) }
+    var employeeSaving by remember { mutableStateOf(false) }
+    var employeeMessage by remember { mutableStateOf("") }
 
     fun verifyAdmin(uid: String) {
         isLoading = true
@@ -167,6 +170,39 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
             dataRows = dataRows,
             dataLoading = dataLoading,
             dataError = dataError,
+            showEmployeeForm = showEmployeeForm,
+            employeeSaving = employeeSaving,
+            employeeMessage = employeeMessage,
+            onAddEmployeeClick = { showEmployeeForm = true; employeeMessage = "" },
+            onCancelEmployee = { showEmployeeForm = false; employeeMessage = "" },
+            onSaveEmployee = { name, employeeEmail, department, position, employeeStatus ->
+                if (name.isBlank()) {
+                    employeeMessage = "Nama lengkap wajib diisi."
+                } else {
+                    employeeSaving = true
+                    employeeMessage = ""
+                    val employee = hashMapOf<String, Any>(
+                        "nama" to name.trim(),
+                        "name" to name.trim(),
+                        "email" to employeeEmail.trim(),
+                        "departemen" to department.trim(),
+                        "jabatan" to position.trim(),
+                        "status" to employeeStatus,
+                        "createdAt" to com.google.firebase.Timestamp.now()
+                    )
+                    db.collection("users").add(employee)
+                        .addOnSuccessListener {
+                            employeeSaving = false
+                            employeeMessage = "Karyawan berhasil ditambahkan."
+                            showEmployeeForm = false
+                            selectedTab = "Karyawan"
+                        }
+                        .addOnFailureListener {
+                            employeeSaving = false
+                            employeeMessage = "Gagal menyimpan. Periksa koneksi dan Firestore Rules."
+                        }
+                }
+            },
             onSelectTab = { selectedTab = it },
             onLogout = {
                 auth.signOut()
@@ -308,6 +344,12 @@ private fun DashboardScreen(
     dataRows: List<Pair<String, String>>,
     dataLoading: Boolean,
     dataError: String,
+    showEmployeeForm: Boolean,
+    employeeSaving: Boolean,
+    employeeMessage: String,
+    onAddEmployeeClick: () -> Unit,
+    onCancelEmployee: () -> Unit,
+    onSaveEmployee: (String, String, String, String, String) -> Unit,
     onSelectTab: (String) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -379,6 +421,23 @@ private fun DashboardScreen(
                     fontSize = 14.sp
                 )
                 Spacer(Modifier.height(18.dp))
+                if (selectedTab == "Karyawan") {
+                    if (employeeMessage.isNotBlank()) {
+                        Text(employeeMessage, color = if (employeeMessage.startsWith("Gagal") || employeeMessage.contains("wajib")) Color(0xFFB42318) else Blue, fontSize = 13.sp)
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    if (showEmployeeForm) {
+                        EmployeeForm(saving = employeeSaving, onCancel = onCancelEmployee, onSave = onSaveEmployee)
+                    } else {
+                        Button(
+                            onClick = onAddEmployeeClick,
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Blue)
+                        ) { Text("+ Tambah Karyawan", fontWeight = FontWeight.Bold) }
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
                 if (selectedTab == "Pengaturan") {
                     Card(
                         shape = RoundedCornerShape(16.dp),
@@ -448,6 +507,59 @@ private fun DashboardScreen(
                     Text(item, color = if (selectedTab == item) Blue else Muted, fontSize = 10.sp, fontWeight = if (selectedTab == item) FontWeight.Bold else FontWeight.Normal)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun EmployeeForm(
+    saving: Boolean,
+    onCancel: () -> Unit,
+    onSave: (String, String, String, String, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var department by remember { mutableStateOf("") }
+    var position by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("Aktif") }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Tambah karyawan", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text("Isi data dasar karyawan. Nama lengkap wajib diisi.", color = Muted, fontSize = 13.sp)
+            Spacer(Modifier.height(14.dp))
+            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama lengkap *") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving, shape = RoundedCornerShape(12.dp))
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email (opsional)") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth(), enabled = !saving, shape = RoundedCornerShape(12.dp))
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(value = department, onValueChange = { department = it }, label = { Text("Departemen / Divisi") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving, shape = RoundedCornerShape(12.dp))
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(value = position, onValueChange = { position = it }, label = { Text("Jabatan") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving, shape = RoundedCornerShape(12.dp))
+            Spacer(Modifier.height(10.dp))
+            Text("Status karyawan", color = Navy, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                listOf("Aktif", "Nonaktif").forEach { option ->
+                    Text(option, color = if (status == option) Color.White else Navy, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (status == option) Blue else ForestSoft)
+                            .clickable(enabled = !saving) { status = option }.padding(horizontal = 16.dp, vertical = 10.dp))
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = { onSave(name, email, department, position, status) }, enabled = !saving,
+                modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Blue)) {
+                if (saving) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Menyimpan...")
+                } else Text("Simpan Karyawan", fontWeight = FontWeight.Bold)
+            }
+            TextButton(onClick = onCancel, enabled = !saving, modifier = Modifier.fillMaxWidth()) { Text("Batal", color = Muted) }
         }
     }
 }
