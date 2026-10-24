@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   User,
 } from "firebase/auth";
@@ -71,6 +72,8 @@ export default function HomePage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatReply, setChatReply] = useState("");
   const [chatSending, setChatSending] = useState(false);
+  const [settingsNotice, setSettingsNotice] = useState("");
+  const [settingsBusy, setSettingsBusy] = useState(false);
 
   useEffect(() => {
     if (!auth) {
@@ -545,6 +548,19 @@ export default function HomePage() {
     setAccess("signed-out");
   }
 
+  async function handlePasswordReset() {
+    const accountEmail = user?.email?.trim();
+    if (!auth || !accountEmail) { setSettingsNotice("Email akun tidak tersedia. Hubungi pengelola sistem."); return; }
+    setSettingsBusy(true); setSettingsNotice("");
+    try {
+      await sendPasswordResetEmail(auth, accountEmail);
+      setSettingsNotice(`Tautan reset kata sandi telah diminta untuk ${accountEmail}. Periksa kotak masuk dan folder spam.`);
+    } catch (cause) {
+      const code = cause && typeof cause === "object" && "code" in cause ? String(cause.code) : "";
+      setSettingsNotice(code === "auth/too-many-requests" ? "Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi." : "Permintaan reset kata sandi gagal. Periksa koneksi dan pengaturan Firebase Authentication.");
+    } finally { setSettingsBusy(false); }
+  }
+
   if (access === "checking") {
     return <main className="center-screen"><div className="loader" /><p>Memeriksa akses ABSEN CONTROL…</p></main>;
   }
@@ -744,16 +760,13 @@ export default function HomePage() {
             <p className="small-note">Ringkasan berdasarkan status dan field yang tersedia. Modul ini hanya membaca data dan belum mengubah atau mengekspor catatan.</p>
           </>}
         </section> : activeSection === "Pengaturan" ? <section className="content-card settings-panel">
-          <div className="settings-hero"><div className="settings-hero-icon">⚙</div><div><span className="settings-eyebrow">PUSAT KONTROL</span><h3>Pengaturan Sistem</h3><p>Ringkasan akun dan konfigurasi ABSEN CONTROL.</p></div><span className="settings-status"><i /> Sistem aktif</span></div>
-          <div className="settings-section-title"><div><h4>Akun yang sedang digunakan</h4><p>Informasi akses yang telah diverifikasi oleh Firestore.</p></div></div>
+          <div className="settings-hero"><div className="settings-hero-icon">⚙</div><div><span className="settings-eyebrow">PUSAT KONTROL</span><h3>Pengaturan Sistem</h3><p>Kelola keamanan akun dan tinjau konfigurasi ABSEN CONTROL.</p></div><span className="settings-status"><i /> Akses terverifikasi</span></div>
+          <div className="settings-section-title"><div><h4>Akun & keamanan</h4><p>Identitas akun yang sedang masuk ke panel web.</p></div></div>
           <div className="settings-account-card"><div className="settings-account-avatar">{(user?.email || role || "A").slice(0,1).toUpperCase()}</div><div className="settings-account-info"><strong>{user?.displayName || user?.email || "Admin ABSEN CONTROL"}</strong><span>{user?.email || "Email tidak tersedia"}</span><small>UID: {user?.uid || "—"}</small></div><span className="settings-role">{role || "Tidak diketahui"}</span></div>
-          <div className="settings-section-title"><div><h4>Kebijakan akses yang disepakati</h4><p>Owner utama dan Admin memiliki akses operasional penuh.</p></div></div>
-          <div className="settings-options">
-            <article className="settings-option"><span className="settings-option-icon blue">♙</span><div><strong>Owner utama</strong><p>Email Owner yang terdaftar dapat melihat dan mengelola seluruh sistem.</p><span className="settings-chip">Akses penuh</span></div><span className="settings-option-arrow">✓</span></article>
-            <article className="settings-option"><span className="settings-option-icon green">♧</span><div><strong>Admin</strong><p>Admin terdaftar dapat mengelola sistem dan mengangkat Admin baru.</p><span className="settings-chip">Akses penuh + kelola Admin</span></div><span className="settings-option-arrow">✓</span></article>
-            <article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Verifikasi akses</strong><p>Hak akses tetap divalidasi melalui dokumen <code>controlAdmins</code> di Firestore. Pendaftaran akun biasa tidak otomatis memberikan role Admin.</p><span className="settings-chip">Firebase Authentication + Firestore</span></div><span className="settings-option-arrow">›</span></article>
-          </div>
-          <div className="settings-notice"><span>ⓘ</span><div><strong>Pengelolaan akun Admin belum diaktifkan</strong><p>Halaman ini menampilkan kebijakan akses yang disepakati. Form untuk mengangkat atau menonaktifkan Admin baru akan diaktifkan setelah Firestore Security Rules dan proses otorisasi server diperiksa, agar pengguna biasa tidak dapat menaikkan hak akses sendiri.</p></div></div>
+          <div className="settings-action-grid"><article className="settings-action-card"><span className="settings-action-icon">🔐</span><div><strong>Reset kata sandi</strong><p>Firebase akan mengirim tautan reset ke email akun yang sedang digunakan.</p></div><button type="button" className="settings-action-button" disabled={settingsBusy || !user?.email} onClick={handlePasswordReset}>{settingsBusy ? "Memproses…" : "Kirim tautan reset"}</button></article><article className="settings-action-card"><span className="settings-action-icon">↪</span><div><strong>Keluar dari akun</strong><p>Akhiri sesi panel web pada perangkat ini.</p></div><button type="button" className="settings-action-button secondary" onClick={handleLogout}>Keluar</button></article></div>
+          {settingsNotice && <div className="settings-feedback" role="status">{settingsNotice}</div>}
+          <div className="settings-section-title"><div><h4>Konfigurasi sistem</h4><p>Fitur berikutnya diaktifkan setelah skema data dan aturan akses diverifikasi.</p></div></div>
+          <div className="settings-options"><article className="settings-option"><span className="settings-option-icon blue">◷</span><div><strong>Aturan absensi</strong><p>Jam kerja, toleransi keterlambatan, dan aturan check-in/check-out belum memiliki konfigurasi terpusat yang terverifikasi.</p><span className="settings-chip">Menunggu audit skema & Rules</span></div><span className="settings-option-arrow">›</span></article><article className="settings-option"><span className="settings-option-icon green">♧</span><div><strong>Pengelolaan Admin</strong><p>Perubahan role perlu otorisasi tepercaya dan Firestore Security Rules, bukan form klien biasa.</p><span className="settings-chip">Perlu pengamanan server</span></div><span className="settings-option-arrow">›</span></article><article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Verifikasi akses</strong><p>Panel memeriksa dokumen <code>controlAdmins</code> dan status aktif akun saat login.</p><span className="settings-chip">Firebase Authentication + Firestore</span></div><span className="settings-option-arrow">✓</span></article></div>
         </section> : <section className="content-card employees-panel"><div className="section-heading"><div><h3>{activeSection}</h3><p>Modul ini belum dihubungkan ke koleksi data terkait.</p></div></div><p className="employee-state">Kita lanjutkan setelah struktur data modul ini dikonfirmasi. Bagian Data Karyawan sudah membaca koleksi <code>users</code>.</p></section>}
         <footer className="dashboard-footer">ABSEN CONTROL <span>·</span> Panel internal manajemen absensi</footer>
       </section>
