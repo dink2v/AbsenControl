@@ -4,7 +4,7 @@ name: Deploy ABSEN CONTROL Web to GitHub Pages
 on:
   push:
     branches:
-      - feature/web-admin-foundation
+      - web-only-history-update
     paths:
       - "web/**"
       - ".github/workflows/web.yml"
