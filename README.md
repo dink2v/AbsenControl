@@ -1,53 +1,63 @@
 # ABSEN CONTROL
 
-A separate Android app project for administrators of the employee attendance system.
+**Panel pengelolaan absensi dan operasional karyawan dalam satu tempat.**
 
-## Project status
+ABSEN CONTROL adalah proyek web admin untuk membantu pengelola memantau kehadiran, data karyawan, dan pengajuan karyawan. Web app menggunakan Firebase Authentication untuk login serta Cloud Firestore untuk membaca data.
 
-The initial Firebase email/password login screen and Firestore admin allowlist check have been added to the working branch. This is still **not a finished or production-ready APK**; an Android build and end-to-end test have not been run.
+<p align="center">
 
-## Architecture
+  **[Buka Web App ABSEN CONTROL](https://dink2v.github.io/AbsenControl/)**
 
-- Repository: `dink2v/AbsenControl` (admin app)
-- Existing employee app remains in `dink2v/AbsensiKaryawan`
-- Both apps are intended to use the existing Firebase project, with separate access rules.
-- Admin authorization uses a trusted Firestore allowlist collection named `controlAdmins`. Client apps must never be allowed to grant themselves admin access.
+</p>
 
-## Android app setup
+> Web app saat ini masih dalam tahap pengembangan. Akses dashboard memerlukan akun pengelola yang sudah terdaftar dan memiliki role aktif.
 
-- Package/application ID: `com.dink2v.absencontrol`
-- Minimum Android SDK: 26
-- Java/Kotlin target: 17
-- UI: Jetpack Compose
-- Firebase Authentication and Cloud Firestore dependencies are included.
+## Fitur
 
-### Firebase configuration
+### Tersedia pada web saat ini
+- Login pengelola menggunakan email dan kata sandi Firebase.
+- Pemeriksaan akses berdasarkan dokumen `controlAdmins`, role, dan status aktif.
+- Dashboard ringkasan yang membaca data dari Firestore:
+  - Total data karyawan dari koleksi `users`.
+  - Kehadiran hari ini dari koleksi `attendance`.
+  - Pengajuan berstatus menunggu dari koleksi `pengajuan`.
+- Logout dari dashboard.
 
-1. Register an Android app in the existing Firebase project with exactly `com.dink2v.absencontrol`.
-2. Put that app's `google-services.json` at `app/google-services.json`.
-3. Enable Email/Password in Firebase Authentication.
-4. Create or choose the admin account in Firebase Authentication.
-5. In Firestore, create a document at `controlAdmins/{uid}`, replacing `{uid}` with that account's exact Authentication UID. Add the field `active` with Boolean value `true`.
-6. Do not let ordinary client apps create or modify `controlAdmins` documents. Verify Firestore Security Rules before testing; if the app cannot read the allowlist document, it will deny access.
+### Bagian dashboard yang sedang dikembangkan
+- Data karyawan dan detail profil.
+- Rekap absensi dan laporan.
+- Pemeriksaan serta pengelolaan pengajuan.
+- Pengaturan akun dan role.
+- Kotak masuk chat admin dengan karyawan.
 
-Use the Firebase Console or another trusted admin process to create the allowlist document. Do not paste passwords, service-account JSON files, private keys, or other secrets into the repository or chat.
+Menu yang ditampilkan pada antarmuka belum berarti seluruh fiturnya sudah aktif. Fitur akan ditandai siap setelah implementasi dan pengujian selesai.
 
-## Current login behavior
+## Teknologi
 
-- Signs in with Firebase Authentication Email/Password.
-- Reads `controlAdmins/{uid}` after sign-in.
-- Allows the app to show its temporary admin landing screen if the document exists and `active` is not explicitly `false`.
-- Signs out and denies entry if the document is missing or the allowlist check fails.
-- Includes a logout button.
+- Next.js dan React
+- TypeScript
+- Firebase Authentication
+- Cloud Firestore
+- GitHub Pages untuk publikasi web
 
-This client-side check is an initial UI gate, not a complete security boundary. Firestore Security Rules must independently protect all admin-only data and actions.
+## Repository terkait
 
-## Planned implementation
+- **ABSEN CONTROL (admin):** repository ini.
+- **Absensi Karyawan:** aplikasi karyawan berada di repository terpisah, `dink2v/AbsensiKaryawan`.
 
-1. Build and test the login flow on Android.
-2. Add the real admin overview.
-3. Add chat inbox and replies compatible with `chatRooms/{staffUid}/messages`.
-4. Add attendance and request review tools.
-5. Audit security rules and perform end-to-end testing before distributing an APK.
+Kedua aplikasi direncanakan menggunakan project Firebase yang sama dengan akses dan aturan keamanan yang sesuai.
 
-No production Firebase rules have been deployed by this repository.
+## Keamanan
+
+- Jangan masukkan kata sandi, private key, service-account JSON, atau rahasia lain ke repository.
+- Akses admin diperiksa melalui dokumen `controlAdmins/{uid}` dengan role yang diizinkan dan `active: true`.
+- Pemeriksaan di sisi web bukan pengganti Firestore Security Rules. Aturan Firestore harus tetap membatasi akses ke data dan tindakan admin.
+- Jangan mengaktifkan atau mengubah aturan keamanan produksi tanpa pengujian.
+
+## Status proyek
+
+Web app sudah berhasil melalui proses build dan deploy GitHub Pages. Pengembangan berikutnya berfokus pada verifikasi pembacaan data dashboard, lalu implementasi fitur admin lainnya secara bertahap.
+
+---
+
+Dikembangkan untuk proyek **ABSEN CONTROL**.
