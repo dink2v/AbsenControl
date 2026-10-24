@@ -1058,3 +1058,89 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .organization-summary article { padding: 9px 10px; }
   .request-summary article, .report-summary article { padding: 10px; }
 }
+
+
+/* Layout safety pass — prevent clipping, overlap and narrow-screen overflow */
+*, *::before, *::after { box-sizing: border-box; }
+html { width: 100%; overflow-x: clip; }
+body { width: 100%; max-width: 100%; overflow-x: clip; }
+.dashboard-layout,
+.dashboard-main,
+.page-heading,
+.content-card,
+.employees-panel,
+.reports-panel,
+.requests-panel,
+.settings-panel,
+.organization-panel,
+.employee-table-wrap,
+.employee-form,
+.employee-form-grid,
+.employee-toolbar,
+.request-toolbar,
+.summary-grid,
+.content-grid,
+.module-grid { min-width: 0; max-width: 100%; }
+.dashboard-layout { grid-template-columns: minmax(0, 224px) minmax(0, 1fr); }
+.sidebar { min-width: 0; }
+.dashboard-main { width: 100%; }
+.topbar, .welcome-row, .section-heading, .employee-form-heading { min-width: 0; }
+.topbar > *, .welcome-row > *, .section-heading > *, .employee-form-heading > * { min-width: 0; }
+.page-heading h1, .page-description, .welcome-row h2, .welcome-row p,
+.section-heading h3, .section-heading p, .settings-hero p {
+  overflow-wrap: anywhere;
+}
+.summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.content-grid { grid-template-columns: minmax(0, 1.7fr) minmax(0, .8fr); }
+.employee-table-wrap { overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.employee-table { width: 100%; }
+.request-table { min-width: 900px; }
+.employee-form-grid > *, .organization-team, .organization-department,
+.organization-member, .organization-supervisor, .settings-option,
+.settings-account-card { min-width: 0; }
+.employee-form-grid input, .employee-form-grid select,
+.employee-toolbar input, .employee-toolbar select,
+.request-toolbar input, .request-toolbar select,
+.attendance-date-label input { max-width: 100%; }
+.employee-row-actions, .employee-heading-actions, .employee-form-actions { min-width: 0; }
+.employee-row-actions button, .employee-heading-actions button,
+.employee-form-actions button { max-width: 100%; }
+img, svg, video, canvas { max-width: 100%; }
+@media (max-width: 1100px) {
+  .dashboard-layout { grid-template-columns: minmax(180px, 200px) minmax(0, 1fr); }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .dashboard-layout { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .sidebar { width: 100%; min-height: 0; }
+  .nav-list { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .dashboard-main { width: 100%; padding-left: 12px; padding-right: 12px; }
+  .topbar { flex-wrap: wrap; align-items: center; }
+  .account-area { max-width: 100%; }
+  .welcome-row { width: 100%; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-grid { grid-template-columns: minmax(0, 1fr); }
+  .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .employee-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .employee-toolbar { width: 100%; }
+  .employee-toolbar > input, .employee-toolbar > select { width: 100%; min-width: 0; }
+  .employee-table { width: max-content; min-width: 100%; }
+  .employee-table-wrap { max-width: 100%; }
+  .organization-team-grid { grid-template-columns: minmax(0, 1fr); }
+  .request-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .request-toolbar > * { width: 100%; min-width: 0; max-width: 100%; }
+  .settings-hero { align-items: flex-start; }
+  .settings-account-card, .settings-option { overflow-wrap: anywhere; }
+}
+@media (max-width: 380px) {
+  .dashboard-main { padding-left: 9px; padding-right: 9px; }
+  .summary-grid { gap: 7px; }
+  .summary-card { padding: 9px; }
+  .summary-top { gap: 5px; }
+  .module-grid { gap: 7px; }
+  .module-tile { padding: 8px; }
+  .content-card { padding: 10px; }
+  .employee-form-actions { grid-template-columns: minmax(0, 1fr); }
+  .employee-form-actions button { width: 100%; }
+}
