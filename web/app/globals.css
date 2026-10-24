@@ -1269,3 +1269,34 @@ html, body { width: 100%; max-width: 100%; overflow-x: clip; }
     padding: 16px 14px 12px !important;
   }
 }
+
+/* Handle phones that request Desktop site: use physical device width too. */
+@media screen and (max-device-width: 700px) {
+  .dashboard-layout {
+    display: block !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .dashboard-layout > .sidebar {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    padding: 12px !important;
+  }
+  .dashboard-layout > .sidebar .nav-list {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+  }
+  .dashboard-layout > .dashboard-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 16px 12px !important;
+  }
+  .content-grid { grid-template-columns: minmax(0, 1fr) !important; }
+}
