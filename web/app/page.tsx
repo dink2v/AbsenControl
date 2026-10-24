@@ -8,7 +8,7 @@ import {
   signOut,
   User,
 } from "firebase/auth";
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db, firebaseConfigured } from "@/lib/firebase";
 
 type Role = "Manager" | "Owner" | "Admin";
@@ -74,6 +74,15 @@ export default function HomePage() {
   const [chatSending, setChatSending] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState("");
   const [settingsBusy, setSettingsBusy] = useState(false);
+  const [attendanceSettingsLoading, setAttendanceSettingsLoading] = useState(false);
+  const [attendanceSettingsSaving, setAttendanceSettingsSaving] = useState(false);
+  const [attendanceSettingsLoaded, setAttendanceSettingsLoaded] = useState(false);
+  const [attendanceSettingsError, setAttendanceSettingsError] = useState("");
+  const [attendanceSettings, setAttendanceSettings] = useState({
+    enabled: true, checkInStart: "07:00", checkInEnd: "09:00",
+    checkOutStart: "16:00", checkOutEnd: "18:00",
+    lateToleranceMinutes: 15, geofenceRadiusMeters: 100, requireLocation: true,
+  });
 
   useEffect(() => {
     if (!auth) {
@@ -548,6 +557,68 @@ export default function HomePage() {
     setAccess("signed-out");
   }
 
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Pengaturan" || attendanceSettingsLoaded) return;
+    let cancelled = false;
+    (async () => {
+      setAttendanceSettingsLoading(true);
+      setAttendanceSettingsError("");
+      try {
+        const snapshot = await getDoc(doc(db, "systemSettings", "attendance"));
+        if (cancelled) return;
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          setAttendanceSettings((current) => ({
+            enabled: typeof data.enabled === "boolean" ? data.enabled : current.enabled,
+            checkInStart: typeof data.checkInStart === "string" ? data.checkInStart : current.checkInStart,
+            checkInEnd: typeof data.checkInEnd === "string" ? data.checkInEnd : current.checkInEnd,
+            checkOutStart: typeof data.checkOutStart === "string" ? data.checkOutStart : current.checkOutStart,
+            checkOutEnd: typeof data.checkOutEnd === "string" ? data.checkOutEnd : current.checkOutEnd,
+            lateToleranceMinutes: Number.isFinite(data.lateToleranceMinutes) ? Math.min(180, Math.max(0, Number(data.lateToleranceMinutes))) : current.lateToleranceMinutes,
+            geofenceRadiusMeters: Number.isFinite(data.geofenceRadiusMeters) ? Math.min(5000, Math.max(10, Number(data.geofenceRadiusMeters))) : current.geofenceRadiusMeters,
+            requireLocation: typeof data.requireLocation === "boolean" ? data.requireLocation : current.requireLocation,
+          }));
+        }
+        setAttendanceSettingsLoaded(true);
+      } catch {
+        if (!cancelled) setAttendanceSettingsError("Pengaturan tidak dapat dibaca. Periksa Firestore Security Rules untuk systemSettings/attendance.");
+      } finally {
+        if (!cancelled) setAttendanceSettingsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [access, user, activeSection, attendanceSettingsLoaded]);
+
+  async function saveAttendanceSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!db || !user || (role !== "Admin" && role !== "Owner")) {
+      setAttendanceSettingsError("Hanya Admin atau Owner yang boleh menyimpan pengaturan absensi.");
+      return;
+    }
+    if (attendanceSettings.checkInStart >= attendanceSettings.checkInEnd || attendanceSettings.checkOutStart >= attendanceSettings.checkOutEnd) {
+      setAttendanceSettingsError("Jam akhir harus lebih besar dari jam mulai pada setiap rentang waktu.");
+      return;
+    }
+    if (attendanceSettings.lateToleranceMinutes < 0 || attendanceSettings.lateToleranceMinutes > 180 || attendanceSettings.geofenceRadiusMeters < 10 || attendanceSettings.geofenceRadiusMeters > 5000) {
+      setAttendanceSettingsError("Toleransi harus 0–180 menit dan radius GPS 10–5.000 meter.");
+      return;
+    }
+    setAttendanceSettingsSaving(true);
+    setAttendanceSettingsError("");
+    setSettingsNotice("");
+    try {
+      await setDoc(doc(db, "systemSettings", "attendance"), {
+        ...attendanceSettings, schemaVersion: 1, updatedAt: serverTimestamp(), updatedBy: user.uid,
+      }, { merge: true });
+      setSettingsNotice("Pengaturan absensi berhasil disimpan ke Firebase Firestore.");
+      setAttendanceSettingsLoaded(true);
+    } catch {
+      setAttendanceSettingsError("Gagal menyimpan. Firestore Security Rules harus membatasi tulis ke Admin/Owner aktif; jangan membuka akses untuk semua pengguna.");
+    } finally {
+      setAttendanceSettingsSaving(false);
+    }
+  }
+
   async function handlePasswordReset() {
     const accountEmail = user?.email?.trim();
     if (!auth || !accountEmail) { setSettingsNotice("Email akun tidak tersedia. Hubungi pengelola sistem."); return; }
@@ -765,8 +836,24 @@ export default function HomePage() {
           <div className="settings-account-card"><div className="settings-account-avatar">{(user?.email || role || "A").slice(0,1).toUpperCase()}</div><div className="settings-account-info"><strong>{user?.displayName || user?.email || "Admin ABSEN CONTROL"}</strong><span>{user?.email || "Email tidak tersedia"}</span><small>UID: {user?.uid || "—"}</small></div><span className="settings-role">{role || "Tidak diketahui"}</span></div>
           <div className="settings-action-grid"><article className="settings-action-card"><span className="settings-action-icon">🔐</span><div><strong>Reset kata sandi</strong><p>Firebase akan mengirim tautan reset ke email akun yang sedang digunakan.</p></div><button type="button" className="settings-action-button" disabled={settingsBusy || !user?.email} onClick={handlePasswordReset}>{settingsBusy ? "Memproses…" : "Kirim tautan reset"}</button></article><article className="settings-action-card"><span className="settings-action-icon">↪</span><div><strong>Keluar dari akun</strong><p>Akhiri sesi panel web pada perangkat ini.</p></div><button type="button" className="settings-action-button secondary" onClick={handleLogout}>Keluar</button></article></div>
           {settingsNotice && <div className="settings-feedback" role="status">{settingsNotice}</div>}
-          <div className="settings-section-title"><div><h4>Konfigurasi sistem</h4><p>Fitur berikutnya diaktifkan setelah skema data dan aturan akses diverifikasi.</p></div></div>
-          <div className="settings-options"><article className="settings-option"><span className="settings-option-icon blue">◷</span><div><strong>Aturan absensi</strong><p>Jam kerja, toleransi keterlambatan, dan aturan check-in/check-out belum memiliki konfigurasi terpusat yang terverifikasi.</p><span className="settings-chip">Menunggu audit skema & Rules</span></div><span className="settings-option-arrow">›</span></article><article className="settings-option"><span className="settings-option-icon green">♧</span><div><strong>Pengelolaan Admin</strong><p>Perubahan role perlu otorisasi tepercaya dan Firestore Security Rules, bukan form klien biasa.</p><span className="settings-chip">Perlu pengamanan server</span></div><span className="settings-option-arrow">›</span></article><article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Verifikasi akses</strong><p>Panel memeriksa dokumen <code>controlAdmins</code> dan status aktif akun saat login.</p><span className="settings-chip">Firebase Authentication + Firestore</span></div><span className="settings-option-arrow">✓</span></article></div>
+          <div className="settings-section-title"><div><h4>Pengaturan Absensi</h4><p>Disimpan pada dokumen <code>systemSettings/attendance</code> di Firestore.</p></div><span className="settings-chip">{attendanceSettingsLoaded ? "Data dimuat" : "Firebase"}</span></div>
+          {attendanceSettingsError && <div className="settings-feedback" role="alert">{attendanceSettingsError}</div>}
+          {attendanceSettingsLoading ? <p className="employee-state">Memuat pengaturan absensi dari Firebase…</p> : <form className="attendance-settings-form" onSubmit={saveAttendanceSettings}>
+            <label className="attendance-settings-toggle"><input type="checkbox" checked={attendanceSettings.enabled} onChange={(event) => setAttendanceSettings((v) => ({...v, enabled: event.target.checked}))} disabled={role === "Manager"} /><span><strong>Pengaturan absensi aktif</strong><small>Menandai konfigurasi aktif untuk integrasi proses absensi berikutnya.</small></span></label>
+            <div className="attendance-settings-grid">
+              <label>Mulai jam masuk<input type="time" value={attendanceSettings.checkInStart} onChange={(event) => setAttendanceSettings((v) => ({...v, checkInStart: event.target.value}))} required disabled={role === "Manager"} /></label>
+              <label>Batas akhir jam masuk<input type="time" value={attendanceSettings.checkInEnd} onChange={(event) => setAttendanceSettings((v) => ({...v, checkInEnd: event.target.value}))} required disabled={role === "Manager"} /></label>
+              <label>Mulai jam pulang<input type="time" value={attendanceSettings.checkOutStart} onChange={(event) => setAttendanceSettings((v) => ({...v, checkOutStart: event.target.value}))} required disabled={role === "Manager"} /></label>
+              <label>Batas akhir jam pulang<input type="time" value={attendanceSettings.checkOutEnd} onChange={(event) => setAttendanceSettings((v) => ({...v, checkOutEnd: event.target.value}))} required disabled={role === "Manager"} /></label>
+              <label>Toleransi terlambat (menit)<input type="number" min="0" max="180" value={attendanceSettings.lateToleranceMinutes} onChange={(event) => setAttendanceSettings((v) => ({...v, lateToleranceMinutes: Number(event.target.value)}))} required disabled={role === "Manager"} /></label>
+              <label>Radius GPS (meter)<input type="number" min="10" max="5000" value={attendanceSettings.geofenceRadiusMeters} onChange={(event) => setAttendanceSettings((v) => ({...v, geofenceRadiusMeters: Number(event.target.value)}))} required disabled={role === "Manager"} /></label>
+            </div>
+            <label className="attendance-settings-toggle"><input type="checkbox" checked={attendanceSettings.requireLocation} onChange={(event) => setAttendanceSettings((v) => ({...v, requireLocation: event.target.checked}))} disabled={role === "Manager"} /><span><strong>Wajibkan lokasi GPS</strong><small>Menyiapkan kebijakan lokasi; validasi GPS belum diberlakukan ke proses check-in.</small></span></label>
+            <p className="small-note">Zona waktu rancangan: WIB (Asia/Jakarta). Konfigurasi ini belum mengubah aturan absensi aktif sampai Rules dan proses check-in web/Android diintegrasikan.</p>
+            {(role === "Admin" || role === "Owner") && <div className="employee-form-actions"><button className="primary-button" type="submit" disabled={attendanceSettingsSaving || attendanceSettingsLoading}>{attendanceSettingsSaving ? "Menyimpan…" : "Simpan pengaturan"}</button><button className="logout-button" type="button" disabled={attendanceSettingsLoading || attendanceSettingsSaving} onClick={() => { setAttendanceSettingsLoaded(false); setAttendanceSettingsError(""); }}>Muat ulang</button></div>}
+            {role === "Manager" && <p className="small-note">Manager hanya dapat melihat pengaturan; penyimpanan dibatasi untuk Admin dan Owner.</p>}
+          </form>
+          <div className="settings-options"><article className="settings-option"><span className="settings-option-icon green">♧</span><div><strong>Pengelolaan Admin</strong><p>Perubahan role perlu otorisasi tepercaya dan Firestore Security Rules.</p><span className="settings-chip">Perlu pengamanan server</span></div><span className="settings-option-arrow">›</span></article><article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Verifikasi akses</strong><p>Panel memeriksa dokumen <code>controlAdmins</code> dan status aktif akun saat login.</p><span className="settings-chip">Firebase Authentication + Firestore</span></div><span className="settings-option-arrow">✓</span></article></div>
         </section> : <section className="content-card employees-panel"><div className="section-heading"><div><h3>{activeSection}</h3><p>Modul ini belum dihubungkan ke koleksi data terkait.</p></div></div><p className="employee-state">Kita lanjutkan setelah struktur data modul ini dikonfirmasi. Bagian Data Karyawan sudah membaca koleksi <code>users</code>.</p></section>}
         <footer className="dashboard-footer">ABSEN CONTROL <span>·</span> Panel internal manajemen absensi</footer>
       </section>
