@@ -194,6 +194,10 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
                         .addOnSuccessListener {
                             employeeSaving = false
                             employeeMessage = "Karyawan berhasil ditambahkan."
+                            val detail = listOf(employeeEmail.trim(), position.trim(), department.trim(), employeeStatus)
+                                .filter { it.isNotBlank() }
+                                .joinToString(" • ")
+                            dataRows = listOf(name.trim() to detail) + dataRows
                             showEmployeeForm = false
                             selectedTab = "Karyawan"
                         }
