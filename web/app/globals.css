@@ -871,3 +871,21 @@ select {
     transition: none !important;
   }
 }
+
+
+/* Employee CRUD form */
+.employee-heading-actions,.employee-row-actions,.employee-form-heading,.employee-form-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.employee-heading-actions{justify-content:flex-end}
+.employee-form{margin:18px 0;padding:20px;border:1px solid #dce7df;border-radius:18px;background:#f8fbf8}
+.employee-form-heading{justify-content:space-between;margin-bottom:16px}
+.employee-form-heading h4{margin:0 0 5px;font-size:16px}
+.employee-form-heading p{margin:0;color:#66756b;font-size:13px}
+.employee-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.employee-form-grid label{display:flex;flex-direction:column;gap:7px;color:#34463b;font-size:13px;font-weight:650}
+.employee-form-grid input,.employee-form-grid select{width:100%;min-width:0;padding:11px 12px;border:1px solid #d7e0d9;border-radius:10px;background:#fff;color:#17231b;font:inherit}
+.employee-form-actions{justify-content:flex-end;margin-top:14px}
+.employee-row-actions{gap:6px}
+.employee-delete-button{padding:8px 10px;border:1px solid #f0caca;border-radius:9px;background:#fff7f7;color:#a52a2a;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.employee-delete-button:hover{background:#ffeaea}
+.employee-form button:disabled{opacity:.6;cursor:wait}
+@media(max-width:640px){.employee-form{padding:14px}.employee-form-grid{grid-template-columns:minmax(0,1fr)}.employee-heading-actions{justify-content:flex-start}.employee-heading-actions .primary-button{width:100%}.employee-row-actions{min-width:115px}}
