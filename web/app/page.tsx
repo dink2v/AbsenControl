@@ -27,6 +27,7 @@ const menuItems = [
   { icon: "▦", title: "Dashboard", description: "Ringkasan operasional" },
   { icon: "♙", title: "Data Karyawan", description: "Daftar dan informasi karyawan" },
   { icon: "◷", title: "Absensi", description: "Rekap kehadiran karyawan" },
+  { icon: "↺", title: "Riwayat", description: "Telusuri riwayat absensi berdasarkan periode dan status" },
   { icon: "▤", title: "Pengajuan", description: "Izin, cuti, dan koreksi absensi" },
   { icon: "✉", title: "Chat Pengaduan", description: "Percakapan dan tindak lanjut pengaduan karyawan" },
   { icon: "▥", title: "Laporan", description: "Rekap dan laporan kehadiran" },
@@ -250,7 +251,7 @@ export default function HomePage() {
   }, [access, user, activeSection]);
 
   useEffect(() => {
-    if (access !== "allowed" || !user || !db || !["Absensi", "Laporan"].includes(activeSection) || (attendanceLoaded && attendanceLoadedKey === attendanceReloadKey)) return;
+    if (access !== "allowed" || !user || !db || !["Absensi", "Riwayat", "Laporan"].includes(activeSection) || (attendanceLoaded && attendanceLoadedKey === attendanceReloadKey)) return;
     const currentDb = db;
     let cancelled = false;
     const loadAttendance = async () => {
@@ -783,6 +784,20 @@ export default function HomePage() {
           {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
           </div>}
           <p className="small-note">Modul ini hanya membaca data absensi. Fitur koreksi atau perubahan catatan akan dibuat setelah aturan dan struktur data dikonfirmasi.</p>
+        </section> : activeSection === "Riwayat" ? <section className="content-card employees-panel">
+          <div className="section-heading"><div><h3>Riwayat Absensi</h3><p>Telusuri catatan lama dari koleksi <code>attendance</code> tanpa mengubah data sumber.</p></div><div className="employee-heading-actions"><span className="module-count">{attendanceRows.length} catatan</span><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Muat ulang"}</button></div></div>
+          <div className="employee-toolbar attendance-toolbar">
+            <input aria-label="Cari riwayat absensi" placeholder="Cari nama, status, atau ID…" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} />
+            <label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal riwayat" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label>
+            <button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Hapus filter</button>
+          </div>
+          {attendanceLoading ? <p className="employee-state">Memuat riwayat dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
+            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+          </tbody></table>
+          {attendanceRows.length === 0 && <p className="employee-state">Belum ada catatan pada koleksi <code>attendance</code>.</p>}
+          {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada riwayat yang cocok dengan filter.</p>}
+          </div>}
+          <p className="small-note">Riwayat ini bersifat baca-saja. Data yang tampil mengikuti field tanggal, nama, jam masuk, jam pulang, dan status yang tersedia di Firestore.</p>
         </section> : activeSection === "Pengajuan" ? <section className="content-card employees-panel requests-panel">
           <div className="section-heading"><div><h3>Semua Pengajuan</h3><p>Data dibaca langsung dari seluruh dokumen koleksi <code>pengajuan</code> di Firestore.</p></div><span className="module-count">{requestRows.length} pengajuan</span></div>
           <div className="request-summary">
@@ -853,6 +868,12 @@ export default function HomePage() {
             {(role === "Admin" || role === "Owner") && <div className="employee-form-actions"><button className="primary-button" type="submit" disabled={attendanceSettingsSaving || attendanceSettingsLoading}>{attendanceSettingsSaving ? "Menyimpan…" : "Simpan pengaturan"}</button><button className="logout-button" type="button" disabled={attendanceSettingsLoading || attendanceSettingsSaving} onClick={() => { setAttendanceSettingsLoaded(false); setAttendanceSettingsError(""); }}>Muat ulang</button></div>}
             {role === "Manager" && <p className="small-note">Manager hanya dapat melihat pengaturan; penyimpanan dibatasi untuk Admin dan Owner.</p>}
           </form>}
+          <div className="settings-section-title"><div><h4>Fitur web saat ini</h4><p>Ringkasan modul yang tersedia pada panel ABSEN CONTROL.</p></div></div>
+          <div className="settings-options">
+            <article className="settings-option"><span className="settings-option-icon green">↺</span><div><strong>Riwayat Absensi</strong><p>Telusuri data absensi lama, cari nama/status/ID, filter tanggal, dan muat ulang data dari Firestore. Riwayat bersifat baca-saja.</p><span className="settings-chip">Aktif di menu Riwayat</span></div><span className="settings-option-arrow">✓</span></article>
+            <article className="settings-option"><span className="settings-option-icon blue">◷</span><div><strong>Pengaturan Absensi</strong><p>Atur jam masuk/pulang, toleransi keterlambatan, radius GPS, dan kewajiban lokasi. Nilai konfigurasi tersimpan di <code>systemSettings/attendance</code>.</p><span className="settings-chip">Perlu integrasi proses absensi & Rules</span></div><span className="settings-option-arrow">⚙</span></article>
+            <article className="settings-option"><span className="settings-option-icon amber">🔐</span><div><strong>Keamanan akun</strong><p>Reset kata sandi lewat email, keluar dari sesi, dan verifikasi role melalui <code>controlAdmins</code>.</p><span className="settings-chip">Firebase Authentication</span></div><span className="settings-option-arrow">✓</span></article>
+          </div>
           <div className="settings-options"><article className="settings-option"><span className="settings-option-icon green">♧</span><div><strong>Pengelolaan Admin</strong><p>Perubahan role perlu otorisasi tepercaya dan Firestore Security Rules.</p><span className="settings-chip">Perlu pengamanan server</span></div><span className="settings-option-arrow">›</span></article><article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Verifikasi akses</strong><p>Panel memeriksa dokumen <code>controlAdmins</code> dan status aktif akun saat login.</p><span className="settings-chip">Firebase Authentication + Firestore</span></div><span className="settings-option-arrow">✓</span></article></div>
         </section> : <section className="content-card employees-panel"><div className="section-heading"><div><h3>{activeSection}</h3><p>Modul ini belum dihubungkan ke koleksi data terkait.</p></div></div><p className="employee-state">Kita lanjutkan setelah struktur data modul ini dikonfirmasi. Bagian Data Karyawan sudah membaca koleksi <code>users</code>.</p></section>}
         <footer className="dashboard-footer">ABSEN CONTROL <span>·</span> Panel internal manajemen absensi</footer>
