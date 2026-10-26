@@ -360,42 +360,109 @@ export default function HomePage() {
     if (access !== "allowed" || !user || !db || activeSection !== "Chat Pengaduan") return;
     let cancelled = false;
     setComplaintsLoading(true);
-    getDocs(collection(db, "pengaduan")).then((snapshot) => {
+    getDocs(collection(db, "chatRooms")).then((snapshot) => {
       const rows = snapshot.docs.map((item) => {
         const data = item.data() as Record<string, unknown>;
         const read = (...keys: string[]) => { for (const key of keys) { const value = data[key]; if (typeof value === "string" && value.trim()) return value.trim(); } return ""; };
-        const time = data.updatedAt ?? data.createdAt ?? data.timestamp;
-        const updatedAt = time && typeof time === "object" && "toDate" in time && typeof (time as {toDate?: unknown}).toDate === "function" ? (time as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : read("updatedAt", "createdAt", "tanggal", "timestamp");
-        return { id: item.id, employee: read("employeeName", "namaKaryawan", "nama", "name", "displayName", "email") || "Karyawan", email: read("employeeEmail", "email"), subject: read("subject", "judul", "title") || "Pengaduan karyawan", message: read("lastMessage", "message", "pesan", "description", "isi") || "Belum ada pesan", status: read("status") || "Baru", updatedAt };
-      }).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt, "id"));
-      if (!cancelled) { setComplaints(rows); setSelectedComplaintId((current) => current && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? null); }
-    }).catch(() => { if (!cancelled) setError("Data pengaduan belum bisa dibaca. Periksa Firestore Security Rules untuk koleksi pengaduan."); }).finally(() => { if (!cancelled) setComplaintsLoading(false); });
+        const rawTime = data.updatedAt;
+        const updatedAt = typeof rawTime === "number"
+          ? new Date(rawTime).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+          : rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function"
+            ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+            : "";
+        return {
+          id: item.id,
+          employee: read("staffName", "employeeName", "namaKaryawan", "name") || "Karyawan",
+          email: read("staffEmail", "employeeEmail", "email"),
+          subject: "Chat Admin",
+          message: read("lastMessage", "message", "pesan") || "Belum ada pesan",
+          status: read("status") || "Percakapan",
+          updatedAt,
+        };
+      }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt, "id"));
+      if (!cancelled) {
+        setComplaints(rows);
+        setSelectedComplaintId((current) => current && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? null);
+      }
+    }).catch(() => {
+      if (!cancelled) setError("Daftar chat belum bisa dibaca. Pastikan Firestore Security Rules mengizinkan admin membaca koleksi chatRooms.");
+    }).finally(() => { if (!cancelled) setComplaintsLoading(false); });
     return () => { cancelled = true; };
   }, [access, user, activeSection]);
 
   useEffect(() => {
     if (access !== "allowed" || !user || !db || activeSection !== "Chat Pengaduan" || !selectedComplaintId) { setChatMessages([]); return; }
-    let cancelled = false; setChatLoading(true);
-    getDocs(collection(db, "pengaduan", selectedComplaintId, "messages")).then((snapshot) => {
-      const rows = snapshot.docs.map((item) => { const data = item.data() as Record<string, unknown>; const rawTime = data.createdAt; const createdAt = rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function" ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : ""; return { id: item.id, text: String(data.text ?? data.message ?? data.pesan ?? ""), sender: String(data.sender ?? data.senderRole ?? "Karyawan"), senderName: String(data.senderName ?? data.namaPengirim ?? "Karyawan"), createdAt }; }).sort((a,b) => a.id.localeCompare(b.id));
+    let cancelled = false;
+    setChatLoading(true);
+    getDocs(collection(db, "chatRooms", selectedComplaintId, "messages")).then((snapshot) => {
+      const rows = snapshot.docs.map((item) => {
+        const data = item.data() as Record<string, unknown>;
+        const rawTime = data.timestamp ?? data.createdAt;
+        const createdAt = typeof rawTime === "number"
+          ? new Date(rawTime).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+          : rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function"
+            ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+            : "";
+        const senderType = String(data.senderType ?? data.sender ?? data.senderRole ?? "STAFF");
+        return {
+          id: item.id,
+          text: String(data.message ?? data.text ?? data.pesan ?? ""),
+          sender: /ADMIN/i.test(senderType) ? "Admin" : "Karyawan",
+          senderName: String(data.senderName ?? data.namaPengirim ?? (/ADMIN/i.test(senderType) ? "Admin" : "Karyawan")),
+          createdAt,
+        };
+      }).sort((a, b) => a.id.localeCompare(b.id));
       if (!cancelled) setChatMessages(rows);
-    }).catch(() => { if (!cancelled) setError("Riwayat chat belum bisa dibaca. Pastikan aturan Firestore mengizinkan akses ke subkoleksi pengaduan/{id}/messages."); }).finally(() => { if (!cancelled) setChatLoading(false); });
+    }).catch(() => {
+      if (!cancelled) setError("Riwayat chat belum bisa dibaca. Pastikan Firestore Security Rules mengizinkan akses ke chatRooms/{uid}/messages.");
+    }).finally(() => { if (!cancelled) setChatLoading(false); });
     return () => { cancelled = true; };
   }, [access, user, activeSection, selectedComplaintId]);
 
   const sendComplaintReply = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const text = chatReply.trim();
+    event.preventDefault();
+    const text = chatReply.trim();
     if (!text || !selectedComplaintId || !db || !user || chatSending) return;
-    setChatSending(true); setError("");
+    setChatSending(true);
+    setError("");
     try {
-      await addDoc(collection(db, "pengaduan", selectedComplaintId, "messages"), { text, sender: "Admin", senderName: user.displayName || user.email || "Admin", senderUid: user.uid, createdAt: serverTimestamp() });
-      await updateDoc(doc(db, "pengaduan", selectedComplaintId), { lastMessage: text, updatedAt: serverTimestamp(), status: "Dibalas", lastReplyBy: user.uid });
+      await addDoc(collection(db, "chatRooms", selectedComplaintId, "messages"), {
+        senderId: user.uid,
+        senderName: user.displayName || user.email || "Admin",
+        senderType: "ADMIN",
+        message: text,
+        timestamp: Date.now(),
+      });
+      await updateDoc(doc(db, "chatRooms", selectedComplaintId), {
+        lastMessage: text,
+        updatedAt: Date.now(),
+        lastReplyBy: user.uid,
+      });
       setChatReply("");
-      const snap = await getDocs(collection(db, "pengaduan", selectedComplaintId, "messages"));
-      setChatMessages(snap.docs.map((item) => { const data = item.data() as Record<string, unknown>; const rawTime = data.createdAt; const createdAt = rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function" ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : ""; return { id: item.id, text: String(data.text ?? data.message ?? data.pesan ?? ""), sender: String(data.sender ?? data.senderRole ?? "Karyawan"), senderName: String(data.senderName ?? data.namaPengirim ?? "Karyawan"), createdAt }; }));
+      const snap = await getDocs(collection(db, "chatRooms", selectedComplaintId, "messages"));
+      setChatMessages(snap.docs.map((item) => {
+        const data = item.data() as Record<string, unknown>;
+        const rawTime = data.timestamp ?? data.createdAt;
+        const createdAt = typeof rawTime === "number"
+          ? new Date(rawTime).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+          : rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function"
+            ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+            : "";
+        const senderType = String(data.senderType ?? data.sender ?? data.senderRole ?? "STAFF");
+        return {
+          id: item.id,
+          text: String(data.message ?? data.text ?? data.pesan ?? ""),
+          sender: /ADMIN/i.test(senderType) ? "Admin" : "Karyawan",
+          senderName: String(data.senderName ?? data.namaPengirim ?? (/ADMIN/i.test(senderType) ? "Admin" : "Karyawan")),
+          createdAt,
+        };
+      }).sort((a, b) => a.id.localeCompare(b.id)));
       setComplaints((old) => old.map((item) => item.id === selectedComplaintId ? { ...item, message: text, status: "Dibalas", updatedAt: "Baru saja" } : item));
-    } catch { setError("Balasan belum tersimpan. Periksa Firestore Security Rules untuk membuat pesan dan memperbarui dokumen pengaduan."); }
-    finally { setChatSending(false); }
+    } catch {
+      setError("Balasan belum tersimpan. Periksa Firestore Security Rules untuk koleksi chatRooms dan subkoleksi messages.");
+    } finally {
+      setChatSending(false);
+    }
   };
 
   const profileRefs = [
