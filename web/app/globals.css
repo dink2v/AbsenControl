@@ -1585,3 +1585,80 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:700px){
   .nav-item.active{box-shadow:inset 0 -2px #b6c8aa}
 }
+
+
+/* Chat Pengaduan — final focused UX pass, aligned with Forest Ink */
+.complaints-panel{padding:clamp(14px,2vw,24px);overflow:hidden}
+.complaints-panel>.section-heading{align-items:center;margin-bottom:20px}
+.complaints-panel>.section-heading h3{font-size:clamp(16px,1.5vw,20px);margin-bottom:6px}
+.complaints-panel>.section-heading p{max-width:650px;font-size:12px;line-height:1.65}
+.complaints-panel>.section-heading .module-count{background:#e9eee5;color:var(--forest);border:1px solid #dce5d6;border-radius:999px;padding:7px 11px}
+.complaints-workspace{grid-template-columns:minmax(270px,.78fr) minmax(0,1.65fr);gap:14px;align-items:stretch}
+.complaint-inbox,.complaint-chat{border:1px solid #e0e5dc;border-radius:14px;background:#fff;box-shadow:0 5px 18px #263b2b08}
+.complaint-inbox{display:flex;flex-direction:column;min-height:520px;max-height:690px}
+.complaint-inbox-heading{position:sticky;top:0;z-index:2;padding:15px 16px;background:#f8f9f6;border-bottom:1px solid #e5e9e1}
+.complaint-inbox-heading strong{font-size:13px;color:var(--ink)}
+.complaint-inbox-heading .logout-button{margin:0;padding:7px 10px;border-radius:7px;background:#fff;border-color:#dfe5da;color:var(--forest)}
+.complaint-inbox>.employee-state{margin:auto;padding:24px 18px;max-width:300px;line-height:1.8}
+.complaint-thread{position:relative;align-items:center;gap:11px;padding:14px 13px;border-bottom:1px solid #eef0eb;transition:background .15s ease}
+.complaint-thread:hover{background:#f8f9f6}
+.complaint-thread.selected{background:#edf2e9;box-shadow:inset 3px 0 var(--forest)}
+.complaint-avatar{flex-basis:40px;width:40px;height:40px;border:1px solid #dce5d6;font-size:13px}
+.complaint-thread-copy{gap:5px}
+.complaint-thread-copy strong{font-size:12px;line-height:1.4;color:var(--ink)}
+.complaint-thread-copy small{font-size:10px;color:#788174;line-height:1.4}
+.complaint-thread-copy span{font-size:11px;line-height:1.5;color:#687365}
+.complaint-status{background:#eef1e9;color:#506548;border:1px solid #e0e6d9;border-radius:6px;padding:5px 7px;font-size:9px;line-height:1.2;white-space:normal;text-align:center;max-width:92px}
+.complaint-chat{min-height:520px;max-height:690px}
+.complaint-chat-header{position:sticky;top:0;z-index:2;align-items:flex-start;padding:17px 19px;background:#fff;border-bottom:1px solid #e7ebe3}
+.complaint-chat-header>div{min-width:0;flex:1}
+.complaint-chat-header h4{font-family:Manrope,sans-serif;font-size:15px;line-height:1.45;color:var(--ink);overflow-wrap:anywhere}
+.complaint-chat-header p{font-size:11px;line-height:1.6;color:#788174}
+.complaint-messages{gap:14px;padding:22px clamp(14px,2vw,24px);background:linear-gradient(#fbfcfa,#f7f8f5);overscroll-behavior:contain}
+.chat-bubble{max-width:min(82%,560px);padding:12px 15px;background:#fff;border:1px solid #e5e9e1;border-radius:14px 14px 14px 5px;box-shadow:0 2px 7px #263b2b08}
+.chat-bubble.admin-message{background:#e9efe5;border-color:#dce5d6;color:#263229;border-radius:14px 14px 5px 14px}
+.chat-bubble>div{gap:8px}
+.chat-bubble>div strong{font-size:11px;line-height:1.4}
+.chat-bubble small{font-size:10px;color:#788174}
+.chat-bubble p{font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.complaint-reply-form{align-items:flex-end;padding:14px 16px;background:#fff;border-top:1px solid #e7ebe3;gap:10px}
+.complaint-reply-form textarea{min-height:46px;max-height:160px;resize:vertical;border:1px solid #d9e0d4;border-radius:10px;background:#fbfcfa;padding:12px 13px;font-size:12px;line-height:1.55;outline:none}
+.complaint-reply-form textarea:focus{border-color:#879b7f;box-shadow:0 0 0 3px #263b2b14;background:#fff}
+.complaint-reply-form .primary-button{width:auto;min-width:132px;height:46px;margin:0;padding:0 16px;border-radius:9px;font-size:11px;white-space:nowrap}
+.complaint-empty{max-width:340px;margin:auto;line-height:1.7}
+.complaint-empty>span{display:grid;place-items:center;width:48px;height:48px;margin:0 auto 14px;border-radius:15px;background:#e9eee5;color:var(--forest);font-size:23px}
+.complaint-empty strong{font-family:Manrope,sans-serif;font-size:14px}
+.complaint-empty p{font-size:11px;color:#788174;margin:7px 0 0}
+.complaints-panel>.small-note{margin-top:16px;padding:12px 14px;border:1px solid #e4e8df;border-radius:9px;background:#f8f9f6;line-height:1.75;overflow-wrap:anywhere}
+@media(max-width:900px){
+  .complaints-workspace{grid-template-columns:minmax(0,1fr);gap:12px}
+  .complaint-inbox{min-height:0;max-height:320px}
+  .complaint-chat{min-height:480px;max-height:620px}
+}
+@media(max-width:600px){
+  .complaints-panel{padding:12px}
+  .complaints-panel>.section-heading{align-items:flex-start;flex-direction:column;gap:10px;margin-bottom:14px}
+  .complaints-panel>.section-heading p{font-size:11px}
+  .complaints-workspace{gap:10px}
+  .complaint-inbox{max-height:270px;border-radius:11px}
+  .complaint-inbox-heading{padding:11px 12px}
+  .complaint-thread{padding:11px 10px;gap:9px}
+  .complaint-avatar{flex-basis:34px;width:34px;height:34px}
+  .complaint-thread-copy strong{font-size:11px}
+  .complaint-thread-copy small,.complaint-thread-copy span{font-size:10px}
+  .complaint-status{max-width:76px;padding:4px 5px;font-size:8px}
+  .complaint-chat{min-height:440px;max-height:calc(100dvh - 150px);border-radius:11px}
+  .complaint-chat-header{padding:13px 12px;gap:8px}
+  .complaint-chat-header h4{font-size:13px}
+  .complaint-chat-header p{font-size:10px;overflow-wrap:anywhere}
+  .complaint-messages{min-height:260px;padding:14px 11px;gap:11px}
+  .chat-bubble{max-width:92%;padding:10px 12px}
+  .chat-bubble p{font-size:11px}
+  .chat-bubble>div strong{font-size:10px}
+  .chat-bubble small{font-size:9px}
+  .complaint-reply-form{padding:10px;gap:8px;flex-direction:column;align-items:stretch}
+  .complaint-reply-form textarea{width:100%;min-height:72px}
+  .complaint-reply-form .primary-button{width:100%;min-height:43px;height:43px}
+  .complaints-panel>.small-note{font-size:10px;padding:10px}
+}
+@media(prefers-reduced-motion:reduce){.complaint-thread{transition:none}}
