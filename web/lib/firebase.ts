@@ -20,11 +20,20 @@ export const firebaseConfigured = Boolean(
     firebaseConfig.appId,
 );
 
+// Keep Firestore on the default Firebase app so existing database access is unchanged.
 const app = firebaseConfigured
-  ? getApps().length
+  ? getApps().some((item) => item.name === "[DEFAULT]")
     ? getApp()
     : initializeApp(firebaseConfig)
   : null;
 
-export const auth = app ? getAuth(app) : null;
+// Use a named Firebase app for ABSEN CONTROL Authentication. Firebase Auth persistence
+// is namespaced by app name, preventing sign-in/sign-out here from sharing the default
+// app's stored session with the employee website on the same GitHub Pages origin.
+const authApp = firebaseConfigured
+  ? getApps().find((item) => item.name === "absen-control-web-auth") ??
+    initializeApp(firebaseConfig, "absen-control-web-auth")
+  : null;
+
+export const auth = authApp ? getAuth(authApp) : null;
 export const db = app ? getFirestore(app) : null;
