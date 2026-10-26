@@ -1440,3 +1440,77 @@ html, body { width: 100%; max-width: 100%; overflow-x: clip; }
 .attendance-settings-toggle small{font-size:12px;line-height:1.5;color:var(--muted)}
 .attendance-settings-form .small-note{margin:0;line-height:1.65}
 @media(max-width:640px){.attendance-settings-grid{grid-template-columns:minmax(0,1fr)}.attendance-settings-form{padding:14px 0}}
+
+
+/* UI/UX refresh: clearer hierarchy, calmer surfaces, and responsive attendance tabs */
+:root{--navy:#101b33;--navy-2:#192b4a;--blue:#3568e8;--ink:#192640;--muted:#748198;--line:#e5eaf2;--bg:#f4f6fb}
+button,input,select,textarea{transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #3568e83b;outline-offset:2px}
+.dashboard-main{max-width:1680px;width:100%;margin:0 auto}
+.sidebar{position:sticky;top:0;height:100vh;overflow-y:auto}
+.nav-item{min-height:44px;border-radius:10px}
+.nav-item.active{box-shadow:inset 3px 0 #83a5ff;background:linear-gradient(90deg,#2d4770,#243b60)}
+.summary-card,.content-card{box-shadow:0 4px 18px #17284406}
+.summary-card{border-radius:15px;padding:18px}
+.content-card{border-radius:15px}
+.section-heading{align-items:flex-start}
+.employee-toolbar input,.employee-toolbar select,.attendance-date-label input,.request-toolbar select{border-color:#dfe5ef;background:#fff}
+.employee-table-wrap{border:1px solid var(--line);border-radius:11px}
+.employee-table{min-width:720px}
+.employee-table th{position:sticky;top:0;background:#f6f8fc;z-index:1}
+.employee-table tbody tr:hover{background:#f8faff}
+.employee-table td{line-height:1.5}
+.attendance-tabs{display:flex;gap:6px;padding:5px;background:#f1f4fa;border:1px solid #e7ebf3;border-radius:11px;margin:0 0 18px;width:max-content;max-width:100%}
+.attendance-tab{border:0;border-radius:8px;background:transparent;color:#6d7890;padding:10px 20px;font-size:12px;font-weight:700;white-space:nowrap}
+.attendance-tab:hover{color:var(--blue);background:#fff}
+.attendance-tab.active{background:#fff;color:var(--blue);box-shadow:0 2px 7px #18294a12}
+.attendance-toolbar{gap:10px}
+.attendance-toolbar .logout-button,.employee-toolbar .logout-button{min-height:40px}
+.primary-button{border-radius:10px;transition:transform .18s ease,background-color .18s ease,box-shadow .18s ease}
+.primary-button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 22px #3568e82b}
+.module-tile{border-radius:12px}
+.module-tile:focus-visible{outline:3px solid #3568e83b;outline-offset:2px}
+.login-form input,.employee-form input,.employee-form select,.attendance-settings-form input,.complaint-reply-form textarea{border-radius:10px}
+@media(max-width:900px){
+  .dashboard-layout{grid-template-columns:190px minmax(0,1fr)}
+  .dashboard-main{padding-left:20px;padding-right:20px}
+  .sidebar{padding-left:12px;padding-right:12px}
+  .sidebar .brand-lockup{font-size:11px}
+}
+@media(max-width:700px){
+  .dashboard-layout{display:block}
+  .sidebar{position:relative;top:auto;height:auto;min-height:0;padding:12px 12px 10px;overflow:visible}
+  .sidebar .brand-lockup{padding:0 4px 12px}
+  .sidebar .brand-mark{width:32px;height:32px}
+  .nav-list{gap:6px;margin:0 -1px;scrollbar-width:thin}
+  .nav-item{height:39px;min-height:39px;border-radius:9px;font-size:11px}
+  .nav-item.active{box-shadow:inset 0 -2px #83a5ff}
+  .dashboard-main{padding:16px 12px 12px}
+  .topbar{gap:10px}
+  .topbar .eyebrow{font-size:8px;letter-spacing:.12em}
+  .topbar h1{font-size:21px}
+  .account-area{gap:7px}
+  .avatar{width:31px;height:31px}
+  .summary-grid{gap:8px}
+  .summary-card{padding:12px;border-radius:12px}
+  .summary-card>strong{font-size:23px;margin-top:9px}
+  .summary-card>p{font-size:9px}
+  .content-card{padding:13px;border-radius:13px}
+  .section-heading{gap:8px}
+  .section-heading h3{font-size:13px}
+  .section-heading p{line-height:1.6}
+  .attendance-tabs{width:100%;display:grid;grid-template-columns:1fr 1fr;margin-bottom:14px}
+  .attendance-tab{padding:10px 8px}
+  .attendance-toolbar{display:grid;grid-template-columns:minmax(0,1fr)}
+  .attendance-toolbar>input{width:100%;min-height:42px}
+  .attendance-date-label{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px}
+  .attendance-date-label input{width:100%;min-width:0}
+  .attendance-toolbar .logout-button{width:100%;margin:0}
+  .employee-heading-actions{flex-wrap:wrap}
+  .employee-table-wrap{border-radius:9px}
+  .employee-table{min-width:680px}
+  .request-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .request-summary article{padding:12px;border-radius:11px}
+  .request-summary article strong{font-size:21px}
+}
+@media(prefers-reduced-motion:reduce){button,input,select,textarea{transition:none}}
