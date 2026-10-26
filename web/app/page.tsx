@@ -497,7 +497,7 @@ export default function HomePage() {
         // Use a named secondary Firebase app so creating a staff account won't sign out the admin.
         const secondaryAppName = "absen-control-employee-creator";
         const secondaryApp = getApps().find((app) => app.name === secondaryAppName)
-          ?? initializeApp(getApp().options, secondaryAppName);
+          ?? initializeApp((getApps().find((app) => app.name === "absen-control-web-auth") ?? getApp()).options, secondaryAppName);
         secondaryAuth = getAuth(secondaryApp);
         const credential = await createUserWithEmailAndPassword(secondaryAuth, employeeEmail, employeeForm.password);
         createdAuthUser = credential.user;
