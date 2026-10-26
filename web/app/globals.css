@@ -1514,3 +1514,74 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .request-summary article strong{font-size:21px}
 }
 @media(prefers-reduced-motion:reduce){button,input,select,textarea{transition:none}}
+
+
+/* Unified Forest Ink palette across the entire ABSEN CONTROL interface */
+:root{
+  --forest:#263b2b;
+  --forest-dark:#1b2b20;
+  --forest-soft:#354536;
+  --blue:var(--forest);
+  --navy:var(--forest-dark);
+  --navy-2:var(--forest);
+  --ink:#263229;
+  --muted:#737d72;
+  --line:#e2e6de;
+  --bg:#f5f6f2;
+  --white:#fff;
+  --green:#54724d;
+  --border:var(--line);
+  --border-color:var(--line);
+  --card-bg:#fff;
+  --surface:#fff;
+  --foreground:var(--ink);
+}
+.brand-mark,.primary-button,.settings-action-button:not(.secondary),.settings-action-button:not(.secondary):hover{
+  background:var(--forest);
+  color:#fff;
+  border-color:var(--forest);
+  box-shadow:none;
+}
+.primary-button:hover:not(:disabled){background:var(--forest-soft);box-shadow:0 8px 18px #263b2b20}
+.login-brand-panel{background:radial-gradient(circle at 15% 15%,#435b42 0,transparent 36%),linear-gradient(145deg,#1b2b20,#263b2b 70%,#354536)}
+.brand-light{color:#c0cbb9}
+.brand-copy h1 span{color:#c0d2b6}
+.nav-item.active{background:var(--forest-soft);color:#fff;box-shadow:inset 3px 0 #b6c8aa}
+.nav-icon,.active-indicator{color:#c0cbb9}
+.active-indicator{background:#b6c8aa}
+.avatar,.organization-avatar,.settings-account-avatar{background:#e5ebe1;color:var(--forest)}
+.summary-icon.blue,.module-icon,.role-emblem,.organization-icon,.settings-action-icon.blue{
+  background:#e9eee5;color:var(--forest)
+}
+.summary-icon.green,.employee-status,.role-pill,.settings-status{
+  background:#e8eee4;color:#426047
+}
+.summary-icon.purple{background:#eeede5;color:#68724e}
+.summary-icon.amber{background:#f4efe2;color:#8b7441}
+.attendance-tabs{background:#eff1eb;border-color:#e0e5da}
+.attendance-tab:hover,.attendance-tab.active{color:var(--forest)}
+.attendance-tab.active{background:#fff;box-shadow:0 2px 7px #263b2b12}
+.login-form input:focus,.employee-toolbar input:focus,.attendance-settings-grid input:focus{
+  border-color:#879b7f;box-shadow:0 0 0 3px #263b2b16
+}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.module-tile:focus-visible{
+  outline-color:#78906d55
+}
+.module-tile:hover{border-color:#bdcbb6}
+.employee-table th{background:#f0f2ed}
+.employee-table tbody tr:hover{background:#f7f8f4}
+.complaint-thread.selected{background:#edf1e9}
+.complaint-avatar,.chat-bubble.admin-message{background:#e5ebe0;color:var(--forest)}
+.complaint-status{background:#e9eee5;color:var(--forest)}
+.settings-hero{background:linear-gradient(120deg,#263b2b,#354536);border-color:#354536;color:#fff}
+.settings-hero h3,.settings-hero p{color:#fff}
+.settings-eyebrow{color:#d2dfc9}
+.settings-hero-icon{background:#435943;color:#edf3e8}
+.settings-action-button.secondary{background:#f5f6f2;color:var(--forest);border-color:#d3dacf}
+.organization-summary article{background:#f7f8f4}
+.organization-supervisor{background:#f4f6f1;border-color:#e2e6de}
+.request-summary article,.report-summary article{background:#fff}
+.request-toolbar select,.employee-toolbar input,.attendance-date-label input{border-color:#dfe4d9}
+@media(max-width:700px){
+  .nav-item.active{box-shadow:inset 0 -2px #b6c8aa}
+}
