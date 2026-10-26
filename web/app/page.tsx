@@ -31,7 +31,6 @@ const menuItems = [
   { icon: "▦", title: "Dashboard", description: "Ringkasan operasional" },
   { icon: "♙", title: "Data Karyawan", description: "Daftar dan informasi karyawan" },
   { icon: "◷", title: "Absensi", description: "Rekap kehadiran karyawan" },
-  { icon: "↺", title: "Riwayat", description: "Telusuri riwayat absensi berdasarkan periode dan status" },
   { icon: "▤", title: "Pengajuan", description: "Izin, cuti, dan koreksi absensi" },
   { icon: "✉", title: "Chat Pengaduan", description: "Percakapan dan tindak lanjut pengaduan karyawan" },
   { icon: "▥", title: "Laporan", description: "Rekap dan laporan kehadiran" },
@@ -50,6 +49,7 @@ export default function HomePage() {
   const [stats, setStats] = useState({ employees: "—", present: "—", pending: "—", review: "—" });
   const [statsLoading, setStatsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState("Dashboard");
+  const [attendanceTab, setAttendanceTab] = useState<"today" | "history">("today");
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
@@ -255,7 +255,7 @@ export default function HomePage() {
   }, [access, user, activeSection]);
 
   useEffect(() => {
-    if (access !== "allowed" || !user || !db || !["Absensi", "Riwayat", "Laporan"].includes(activeSection) || (attendanceLoaded && attendanceLoadedKey === attendanceReloadKey)) return;
+    if (access !== "allowed" || !user || !db || !["Absensi", "Laporan"].includes(activeSection) || (attendanceLoaded && attendanceLoadedKey === attendanceReloadKey)) return;
     const currentDb = db;
     let cancelled = false;
     const loadAttendance = async () => {
@@ -885,6 +885,11 @@ export default function HomePage() {
           <p className="small-note">Fitur tambah, edit, dan hapus tersedia untuk Admin dan Owner. Penghapusan menghapus dokumen users saja, bukan akun Firebase Authentication atau riwayat absensi.</p>
         </section> : activeSection === "Absensi" ? <section className="content-card employees-panel">
           <div className="section-heading"><div><h3>Rekap Absensi</h3><p>Data langsung dari koleksi <code>attendance</code> di Firestore.</p></div><span className="module-count">{attendanceRows.length} catatan</span></div>
+<div className="attendance-tabs" role="tablist" aria-label="Tampilan absensi">
+            <button type="button" role="tab" aria-selected={attendanceTab === "today"} className={attendanceTab === "today" ? "attendance-tab active" : "attendance-tab"} onClick={() => setAttendanceTab("today")}>Absensi</button>
+            <button type="button" role="tab" aria-selected={attendanceTab === "history"} className={attendanceTab === "history" ? "attendance-tab active" : "attendance-tab"} onClick={() => setAttendanceTab("history")}>Riwayat</button>
+          </div>
+          {attendanceTab === "today" ? <>
           <div className="employee-toolbar attendance-toolbar"><input aria-label="Cari absensi" placeholder="Cari nama, status, atau ID…" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} /><label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal absensi" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Reset filter</button></div>
           {attendanceLoading ? <p className="employee-state">Memuat catatan absensi dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
             {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
@@ -893,8 +898,8 @@ export default function HomePage() {
           {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
           </div>}
           <p className="small-note">Modul ini hanya membaca data absensi. Fitur koreksi atau perubahan catatan akan dibuat setelah aturan dan struktur data dikonfirmasi.</p>
-        </section> : activeSection === "Riwayat" ? <section className="content-card employees-panel">
-          <div className="section-heading"><div><h3>Riwayat Absensi</h3><p>Telusuri catatan lama dari koleksi <code>attendance</code> tanpa mengubah data sumber.</p></div><div className="employee-heading-actions"><span className="module-count">{attendanceRows.length} catatan</span><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Muat ulang"}</button></div></div>
+          </> : <>
+            <div className="section-heading"><div><h3>Riwayat Absensi</h3><p>Telusuri catatan lama dari koleksi <code>attendance</code> tanpa mengubah data sumber.</p></div><div className="employee-heading-actions"><span className="module-count">{attendanceRows.length} catatan</span><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Muat ulang"}</button></div></div>
           <div className="employee-toolbar attendance-toolbar">
             <input aria-label="Cari riwayat absensi" placeholder="Cari nama, status, atau ID…" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} />
             <label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal riwayat" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label>
@@ -907,6 +912,7 @@ export default function HomePage() {
           {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada riwayat yang cocok dengan filter.</p>}
           </div>}
           <p className="small-note">Riwayat ini bersifat baca-saja. Data yang tampil mengikuti field tanggal, nama, jam masuk, jam pulang, dan status yang tersedia di Firestore.</p>
+          </>}
         </section> : activeSection === "Pengajuan" ? <section className="content-card employees-panel requests-panel">
           <div className="section-heading"><div><h3>Semua Pengajuan</h3><p>Data dibaca langsung dari seluruh dokumen koleksi <code>pengajuan</code> di Firestore.</p></div><span className="module-count">{requestRows.length} pengajuan</span></div>
           <div className="request-summary">
@@ -979,7 +985,7 @@ export default function HomePage() {
           </form>}
           <div className="settings-section-title"><div><h4>Fitur web saat ini</h4><p>Ringkasan modul yang tersedia pada panel ABSEN CONTROL.</p></div></div>
           <div className="settings-options">
-            <article className="settings-option"><span className="settings-option-icon green">↺</span><div><strong>Riwayat Absensi</strong><p>Telusuri data absensi lama, cari nama/status/ID, filter tanggal, dan muat ulang data dari Firestore. Riwayat bersifat baca-saja.</p><span className="settings-chip">Aktif di menu Riwayat</span></div><span className="settings-option-arrow">✓</span></article>
+            <article className="settings-option"><span className="settings-option-icon green">↺</span><div><strong>Riwayat Absensi</strong><p>Telusuri data absensi lama, cari nama/status/ID, filter tanggal, dan muat ulang data dari Firestore. Riwayat bersifat baca-saja.</p><span className="settings-chip">Aktif di tab Absensi</span></div><span className="settings-option-arrow">✓</span></article>
             <article className="settings-option"><span className="settings-option-icon blue">◷</span><div><strong>Pengaturan Absensi</strong><p>Atur jam masuk/pulang, toleransi keterlambatan, radius GPS, dan kewajiban lokasi. Nilai konfigurasi tersimpan di <code>systemSettings/attendance</code>.</p><span className="settings-chip">Perlu integrasi proses absensi & Rules</span></div><span className="settings-option-arrow">⚙</span></article>
             <article className="settings-option"><span className="settings-option-icon amber">🔐</span><div><strong>Keamanan akun</strong><p>Reset kata sandi lewat email, keluar dari sesi, dan verifikasi role melalui <code>controlAdmins</code>.</p><span className="settings-chip">Firebase Authentication</span></div><span className="settings-option-arrow">✓</span></article>
           </div>
