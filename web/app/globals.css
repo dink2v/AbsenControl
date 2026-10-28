@@ -1662,3 +1662,27 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .complaints-panel>.small-note{font-size:10px;padding:10px}
 }
 @media(prefers-reduced-motion:reduce){.complaint-thread{transition:none}}
+
+
+/* Keep the Add Employee action visible and correctly sized in the Data Karyawan header. */
+.employee-heading-actions .employee-add-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: max-content;
+  min-height: 40px;
+  margin: 0;
+  padding: 10px 14px;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  visibility: visible;
+  opacity: 1;
+}
+@media (max-width: 640px) {
+  .employee-heading-actions .employee-add-button {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+}
