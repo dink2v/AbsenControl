@@ -23,6 +23,7 @@ type ComplaintRecord = { id: string; employee: string; email: string; subject: s
 
 const roleDescriptions: Record<Role, string> = {
   Manager: "Pemantauan tim dan pengajuan sesuai wewenang",
+  HRD: "Pengelolaan sumber daya manusia dan pemantauan absensi sesuai wewenang",
   Owner: "Akses penuh untuk melihat dan mengelola seluruh sistem",
   Admin: "Akses penuh untuk melihat, mengelola sistem, dan mengangkat Admin baru",
 };
