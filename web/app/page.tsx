@@ -57,7 +57,7 @@ export default function HomePage() {
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [employeeSaving, setEmployeeSaving] = useState(false);
   const [employeeForm, setEmployeeForm] = useState({ name: "", email: "", password: "", department: "", position: "", status: "Aktif" });
-  const [attendanceRows, setAttendanceRows] = useState<{id:string;name:string;date:string;checkIn:string;checkOut:string;status:string}[]>([]);
+  const [attendanceRows, setAttendanceRows] = useState<{id:string;name:string;date:string;checkIn:string;checkOut:string;status:string;office:string;officeAddress:string;coordinates:string}[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSearch, setAttendanceSearch] = useState("");
   const [attendanceDate, setAttendanceDate] = useState(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
@@ -272,6 +272,35 @@ export default function HomePage() {
             }
             return "";
           };
+          const locationData = [data.officeLocation, data.lokasiKantor, data.location, data.lokasi]
+            .find((value) => typeof value === "object" && value !== null && !Array.isArray(value)) as Record<string, unknown> | undefined;
+          const pickLocation = (...keys: string[]) => {
+            for (const source of [data, locationData ?? {}]) {
+              for (const key of keys) {
+                const value = source[key];
+                if ((typeof value === "string" || typeof value === "number") && String(value).trim()) return String(value).trim();
+              }
+            }
+            return "";
+          };
+          const pickLocationFromNested = (source: Record<string, unknown> | undefined, ...keys: string[]) => {
+            if (!source) return "";
+            for (const key of keys) {
+              const value = source[key];
+              if ((typeof value === "string" || typeof value === "number") && String(value).trim()) return String(value).trim();
+            }
+            return "";
+          };
+          const office = pickLocation("namaKantor", "kantorNama", "officeName", "office", "namaCabang", "cabang", "lokasiKantor", "workLocation")
+            || pickLocationFromNested(locationData, "name", "nama", "officeName", "namaKantor");
+          const officeAddress = pickLocation("alamatKantor", "officeAddress", "alamatCabang", "officeAddressText")
+            || pickLocationFromNested(locationData, "address", "alamat", "officeAddress");
+          const latitude = pickLocation("latitude", "lat", "gpsLatitude", "lokasiLatitude");
+          const longitude = pickLocation("longitude", "lng", "lon", "gpsLongitude", "lokasiLongitude");
+          const nestedLatitude = pickLocationFromNested(locationData, "latitude", "lat");
+          const nestedLongitude = pickLocationFromNested(locationData, "longitude", "lng", "lon");
+          const coordinates = latitude && longitude ? `${latitude}, ${longitude}`
+            : nestedLatitude && nestedLongitude ? `${nestedLatitude}, ${nestedLongitude}` : "";
           return {
             id: item.id,
             name: pick("nama", "name", "namaLengkap", "fullName") || "Tanpa nama",
@@ -279,6 +308,9 @@ export default function HomePage() {
             checkIn: pick("jamMasuk", "checkIn", "waktuMasuk", "clockIn"),
             checkOut: pick("jamPulang", "checkOut", "waktuPulang", "clockOut"),
             status: pick("status") || "Tidak diketahui",
+            office,
+            officeAddress,
+            coordinates,
           };
         }).sort((a, b) => b.date.localeCompare(a.date, "id") || a.name.localeCompare(b.name, "id"));
         if (!cancelled) {
@@ -891,11 +923,11 @@ export default function HomePage() {
           </div>
           {attendanceTab === "today" ? <>
           <div className="employee-toolbar attendance-toolbar"><input aria-label="Cari absensi" placeholder="Cari nama, status, atau ID…" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} /><label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal absensi" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Reset filter</button></div>
-          {attendanceLoading ? <p className="employee-state">Memuat catatan absensi dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
-            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+          {attendanceLoading ? <p className="employee-state">Memuat catatan absensi dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Kantor / Lokasi</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
+            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td><strong>{item.office || "Kantor belum tercatat"}</strong><small>{[item.officeAddress, item.coordinates ? `GPS: ${item.coordinates}` : ""].filter(Boolean).join(" · ") || "Lokasi belum dikirim oleh aplikasi karyawan"}</small></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
           </tbody></table>
           {attendanceRows.length === 0 && !attendanceLoading && <p className="employee-state">Belum ada catatan pada koleksi <code>attendance</code>.</p>}
-          {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
+          {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
           </div>}
           <p className="small-note">Modul ini hanya membaca data absensi. Fitur koreksi atau perubahan catatan akan dibuat setelah aturan dan struktur data dikonfirmasi.</p>
           </> : <>
@@ -905,11 +937,11 @@ export default function HomePage() {
             <label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal riwayat" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label>
             <button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Hapus filter</button>
           </div>
-          {attendanceLoading ? <p className="employee-state">Memuat riwayat dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
-            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+          {attendanceLoading ? <p className="employee-state">Memuat riwayat dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Kantor / Lokasi</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
+            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td><strong>{item.office || "Kantor belum tercatat"}</strong><small>{[item.officeAddress, item.coordinates ? `GPS: ${item.coordinates}` : ""].filter(Boolean).join(" · ") || "Lokasi belum dikirim oleh aplikasi karyawan"}</small></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
           </tbody></table>
           {attendanceRows.length === 0 && <p className="employee-state">Belum ada catatan pada koleksi <code>attendance</code>.</p>}
-          {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada riwayat yang cocok dengan filter.</p>}
+          {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada riwayat yang cocok dengan filter.</p>}
           </div>}
           <p className="small-note">Riwayat ini bersifat baca-saja. Data yang tampil mengikuti field tanggal, nama, jam masuk, jam pulang, dan status yang tersedia di Firestore.</p>
           </>}
