@@ -16,13 +16,14 @@ import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, s
 import { auth, db, firebaseConfigured } from "../lib/firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
-type Role = "Manager" | "Owner" | "Admin" | "HRD";
+type Role = "Supervisor" | "Manager" | "Owner" | "Admin" | "HRD";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
 type EmployeeRecord = { id: string; uid: string; name: string; email: string; department: string; position: string; role: string; status: string; managerRefs: string[]; managerName: string };
 type RequestRecord = { id: string; employee: string; email: string; type: string; status: string; submittedAt: string; startDate: string; endDate: string; reason: string; raw: Record<string, unknown> };
 type ComplaintRecord = { id: string; employee: string; email: string; subject: string; message: string; status: string; updatedAt: string }; type ChatMessage = { id: string; text: string; sender: string; senderName: string; createdAt: string };
 
 const roleDescriptions: Record<Role, string> = {
+  Supervisor: "Persetujuan pengajuan sesuai jalur atasan",
   Manager: "Pemantauan tim dan pengajuan sesuai wewenang",
   HRD: "Pengelolaan sumber daya manusia dan pemantauan absensi sesuai wewenang",
   Owner: "Akses penuh untuk melihat dan mengelola seluruh sistem",
@@ -72,6 +73,7 @@ export default function HomePage() {
   const [requestStatus, setRequestStatus] = useState("Semua");
   const [requestReloadKey, setRequestReloadKey] = useState(0);
   const [requestLoadedKey, setRequestLoadedKey] = useState(-1);
+  const [requestActionId, setRequestActionId] = useState<string | null>(null);
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [complaintsLoading, setComplaintsLoading] = useState(false);
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
@@ -124,6 +126,7 @@ export default function HomePage() {
         // Only these three roles may access the web admin panel.
         // Normalize case so "MANAGER" and "Manager" are treated consistently.
         const roleByKey: Record<string, Role> = {
+          supervisor: "Supervisor",
           admin: "Admin",
           manager: "Manager",
           owner: "Owner",
@@ -726,6 +729,42 @@ export default function HomePage() {
     setAccess("signed-out");
   }
 
+  async function decidePengajuan(item: RequestRecord, decision: "disetujui" | "ditolak") {
+    if (!auth?.currentUser || !db) {
+      setError("Sesi login tidak ditemukan. Silakan login kembali.");
+      return;
+    }
+    const currentUid = auth.currentUser.uid;
+    const chain = Array.isArray(item.raw.approvalChain)
+      ? item.raw.approvalChain.filter((value): value is string => typeof value === "string")
+      : [];
+    const currentApproverUid = typeof item.raw.currentApproverUid === "string" ? item.raw.currentApproverUid : "";
+    const isWaiting = String(item.raw.status ?? item.status).trim().toLowerCase() === "menunggu";
+    if (!isWaiting || item.raw.approvalLocked === true || currentApproverUid !== currentUid || !chain.includes(currentUid)) {
+      setError("Pengajuan ini bukan giliran persetujuan akun Anda, atau statusnya sudah berubah. Muat ulang data.");
+      return;
+    }
+    const verb = decision === "disetujui" ? "menyetujui" : "menolak";
+    if (!window.confirm(`Yakin ${verb} pengajuan ${item.type} dari ${item.employee}?`)) return;
+    setRequestActionId(item.id);
+    setError("");
+    try {
+      const callable = httpsCallable(getFunctions(auth.app, "asia-southeast1"), "decidePengajuanApproval");
+      await callable({ documentId: item.id, decision });
+      setRequestReloadKey((key) => key + 1);
+    } catch (cause: unknown) {
+      const code = typeof cause === "object" && cause !== null && "code" in cause ? String((cause as { code?: unknown }).code ?? "") : "";
+      const message = cause instanceof Error ? cause.message : "";
+      setError(code === "functions/permission-denied"
+        ? "Aksi ditolak: hanya approver aktif pada tahap ini yang boleh memproses pengajuan."
+        : code === "functions/failed-precondition"
+          ? (message || "Status atau tahap approval sudah berubah. Muat ulang data.")
+          : "Aksi gagal disimpan. Pastikan Cloud Function decidePengajuanApproval sudah di-deploy di region asia-southeast1 dan periksa koneksi Firebase.");
+    } finally {
+      setRequestActionId(null);
+    }
+  }
+
   useEffect(() => {
     if (access !== "allowed" || !user || !db || activeSection !== "Pengaturan" || attendanceSettingsLoaded) return;
     let cancelled = false;
@@ -953,7 +992,18 @@ export default function HomePage() {
           {attendanceTab === "today" ? <>
           <div className="employee-toolbar attendance-toolbar"><input aria-label="Cari absensi" placeholder="Cari nama, status, atau ID…" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} /><label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal absensi" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label><button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Reset filter</button></div>
           {attendanceLoading ? <p className="employee-state">Memuat catatan absensi dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Kantor / Lokasi</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
-            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td><strong>{item.office || "Kantor belum tercatat"}</strong><small>{[item.officeAddress, item.coordinates ? `GPS: ${item.coordinates}` : ""].filter(Boolean).join(" · ") || "Lokasi belum dikirim oleh aplikasi karyawan"}</small></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{item.date || "—"}</td><td><strong>{item.name}</strong></td><td><strong>{item.office || "Kantor belum tercatat"}</strong><small>{[item.officeAddress, item.coordinates ? `GPS: ${item.coordinates}` : ""].filter(Boolean).join(" · ") || "Lokasi belum dikirim oleh aplikasi karyawan"}</small></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td><td className="request-actions">{(() => {
+              const chain = Array.isArray(item.raw.approvalChain) ? item.raw.approvalChain : [];
+              const canDecide = String(item.raw.status ?? item.status).trim().toLowerCase() === "menunggu"
+                && item.raw.approvalLocked !== true
+                && !!user?.uid
+                && item.raw.currentApproverUid === user.uid
+                && chain.includes(user.uid);
+              return canDecide ? <div className="request-action-buttons">
+                <button type="button" className="primary-button" disabled={requestActionId === item.id} onClick={() => void decidePengajuan(item, "disetujui")}>{requestActionId === item.id ? "Memproses…" : "Approve"}</button>
+                <button type="button" className="logout-button" disabled={requestActionId === item.id} onClick={() => void decidePengajuan(item, "ditolak")}>Tolak</button>
+              </div> : <small>{String(item.raw.status ?? item.status).trim().toLowerCase() === "menunggu" ? (item.raw.currentApproverName ? `Menunggu: ${String(item.raw.currentApproverName)}` : "Bukan giliran Anda") : "Selesai"}</small>;
+            })()}</td></tr>)}
           </tbody></table>
           {attendanceRows.length === 0 && !attendanceLoading && <p className="employee-state">Belum ada catatan pada koleksi <code>attendance</code>.</p>}
           {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
@@ -988,13 +1038,13 @@ export default function HomePage() {
             <button type="button" className="logout-button" onClick={() => { setRequestSearch(""); setRequestStatus("Semua"); }}>Reset filter</button>
             <button type="button" className="primary-button request-refresh" onClick={() => setRequestReloadKey((key) => key + 1)} disabled={requestsLoading} title="Muat ulang data dari Firestore">{requestsLoading ? "Memuat…" : "Muat ulang"}</button>
           </div>
-          {requestsLoading ? <p className="employee-state">Memuat semua pengajuan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table request-table"><thead><tr><th>Pemohon</th><th>Jenis</th><th>Tanggal pengajuan</th><th>Periode</th><th>Alasan / keterangan</th><th>Status</th><th>ID dokumen</th></tr></thead><tbody>
+          {requestsLoading ? <p className="employee-state">Memuat semua pengajuan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table request-table"><thead><tr><th>Pemohon</th><th>Jenis</th><th>Tanggal pengajuan</th><th>Periode</th><th>Alasan / keterangan</th><th>Status</th><th>ID dokumen</th><th>Tindakan</th></tr></thead><tbody>
             {requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td><strong>{item.employee}</strong>{item.email && <small>{item.email}</small>}</td><td>{item.type}</td><td>{item.submittedAt || "—"}</td><td>{item.startDate || item.endDate ? <>{item.startDate || "—"}{item.endDate ? ` s.d. ${item.endDate}` : ""}</> : "—"}</td><td className="request-reason">{item.reason || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
           </tbody></table>
           {requestRows.length === 0 && <p className="employee-state">Koleksi <code>pengajuan</code> belum memiliki dokumen atau belum ada data yang berhasil dibaca.</p>}
           {requestRows.length > 0 && requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada pengajuan yang cocok dengan pencarian atau filter status.</p>}
           </div>}
-          <p className="small-note">Mode pemeriksaan: seluruh dokumen ditampilkan tanpa mengubah atau menghapus data. Kolom umum dipetakan dari beberapa nama field; pencarian juga mencakup isi dokumen lainnya. Tombol persetujuan/penolakan belum diaktifkan agar data status tidak berubah sebelum alur persetujuan dan field database dipastikan.</p>
+          <p className="small-note">Mode pemeriksaan: seluruh dokumen ditampilkan tanpa mengubah atau menghapus data. Approve/Tolak hanya tampil pada approver yang tercatat sebagai currentApproverUid. Keputusan diproses melalui Cloud Function dan status berikutnya mengikuti approvalChain.</p>
         </section> : activeSection === "Dashboard" ? <>
         <section className="summary-grid" aria-label="Ringkasan">
           <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
