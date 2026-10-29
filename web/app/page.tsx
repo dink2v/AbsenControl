@@ -1067,13 +1067,15 @@ export default function HomePage() {
           </div>}
           <p className="small-note">Riwayat persetujuan dibaca dari field approvalChain, approvals, approvalHistory, atau field approver yang tersedia pada dokumen. Jika nama atau waktu persetujuan tidak tersimpan di Firestore, panel menampilkan UID atau keterangan bahwa detail belum tercatat—tidak membuat data persetujuan sendiri. Halaman ini tetap bersifat baca-saja.</p>
         </section> : activeSection === "Dashboard" ? <>
-        <section className="content-card dashboard-quick-menu">
-          <div className="section-heading"><div><h3>Akses menu</h3><p>Pilih menu dari daftar di bawah untuk membuka halaman yang kamu butuhkan.</p></div></div>
-          <label className="dashboard-menu-label" htmlFor="dashboard-menu-select">Pilih halaman</label>
-          <select id="dashboard-menu-select" className="dashboard-menu-select" defaultValue="" onChange={(event) => { if (event.target.value) { setActiveSection(event.target.value); setError(""); } }}>
-            <option value="" disabled>— Pilih menu ABSEN CONTROL —</option>
-            {menuItems.filter((item) => item.title !== "Dashboard").map((item) => <option key={item.title} value={item.title}>{item.title}</option>)}
-          </select>
+        <section className="summary-grid" aria-label="Ringkasan">
+          <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Hadir Hari Ini</span><span className="summary-icon green">✓</span></div><strong>{stats.present}</strong><p>{statsLoading ? "Memuat data absensi…" : "Kehadiran pada hari ini"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Pengajuan Pending</span><span className="summary-icon amber">◷</span></div><strong>{stats.pending}</strong><p>{statsLoading ? "Memuat data pengajuan…" : "Pengajuan berstatus menunggu"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Perlu Ditinjau</span><span className="summary-icon purple">▤</span></div><strong>{stats.review}</strong><p>{statsLoading ? "Memuat ringkasan…" : "Pengajuan yang perlu ditinjau"}</p></article>
+        </section>
+        <section className="content-grid">
+          <article className="content-card main-card"><div className="section-heading"><div><h3>Modul pengelolaan</h3><p>Ruang kerja utama sesuai hak akses akun.</p></div><span className="module-count">06 modul</span></div><div className="module-grid">{menuItems.slice(1).map((item) => <button className="module-tile" key={item.title} type="button" onClick={() => { setActiveSection(item.title); setError(""); }}><span className="module-icon">{item.icon}</span><strong>{item.title}</strong><span>{item.description}</span><span className="tile-arrow">↗</span></button>)}</div></article>
+          <aside className="content-card access-card"><div className="section-heading"><div><h3>Akses akun</h3><p>Role yang aktif saat ini.</p></div></div><div className="role-emblem">♙</div><span className="role-pill">{role}</span><h4>{role === "Admin" ? "Administrator sistem" : role}</h4><p className="muted">{roleDescriptions[role]}</p><div className="access-divider" /><div className="access-status"><span className="secure-dot" /> Akun terverifikasi</div><p className="small-note">Hak akses diverifikasi melalui dokumen controlAdmins di Firestore.</p></aside>
         </section>
         </> : activeSection === "Laporan" ? <section className="content-card employees-panel reports-panel">
           <div className="section-heading"><div><h3>Laporan Kehadiran</h3><p>Ringkasan memakai data absensi yang sama dengan menu Absensi agar tidak membaca ulang koleksi.</p></div><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Perbarui laporan"}</button></div>
