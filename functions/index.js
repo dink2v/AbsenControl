@@ -207,3 +207,121 @@ exports.migrateAccountUid = onCall({ region: "asia-southeast1", timeoutSeconds: 
     note: "Firestore references migrated. UID lama di Firebase Authentication tidak dihapus; verifikasi login dan riwayat sebelum tindakan lanjutan.",
   };
 });
+
+
+// Process an approval only for the currently assigned approver.
+// The server rechecks the stage inside a Firestore transaction; the web UI is not trusted.
+exports.decidePengajuanApproval = onCall({ region: "asia-southeast1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Login diperlukan.");
+  }
+
+  const callerUid = request.auth.uid;
+  const documentId = typeof request.data?.documentId === "string" ? request.data.documentId.trim() : "";
+  const decision = typeof request.data?.decision === "string" ? request.data.decision.trim().toLowerCase() : "";
+  if (!documentId || !["disetujui", "ditolak"].includes(decision)) {
+    throw new HttpsError("invalid-argument", "ID pengajuan dan keputusan yang valid wajib diisi.");
+  }
+
+  const db = getFirestore();
+  const accessSnap = await db.collection("controlAdmins").doc(callerUid).get();
+  const callerRole = String(accessSnap.get("role") || "").trim().toLowerCase();
+  const allowedRoles = ["supervisor", "manager", "hrd", "owner", "admin"];
+  if (!accessSnap.exists || accessSnap.get("active") !== true || !allowedRoles.includes(callerRole)) {
+    throw new HttpsError("permission-denied", "Akun tidak memiliki akses aktif ke panel.");
+  }
+
+  const requestRef = db.collection("pengajuan").doc(documentId);
+  const userRef = (uid) => db.collection("users").doc(uid);
+
+  const result = await db.runTransaction(async (tx) => {
+    const requestSnap = await tx.get(requestRef);
+    if (!requestSnap.exists) {
+      throw new HttpsError("not-found", "Pengajuan tidak ditemukan.");
+    }
+
+    const data = requestSnap.data() || {};
+    const status = String(data.status || "menunggu").trim().toLowerCase();
+    const chain = Array.isArray(data.approvalChain) ? data.approvalChain.filter((uid) => typeof uid === "string") : [];
+    const currentUid = typeof data.currentApproverUid === "string" ? data.currentApproverUid : "";
+    if (data.approvalLocked === true || status !== "menunggu") {
+      throw new HttpsError("failed-precondition", "Pengajuan sudah selesai atau tidak lagi menunggu persetujuan.");
+    }
+    if (!chain.length || !chain.includes(callerUid) || currentUid !== callerUid) {
+      throw new HttpsError("permission-denied", "Anda bukan approver aktif pada tahap pengajuan ini.");
+    }
+
+    const nextIndex = chain.indexOf(callerUid) + 1;
+    const nextUid = decision === "disetujui" ? (chain[nextIndex] || "") : "";
+    const actorRef = userRef(callerUid);
+    const actorSnap = await tx.get(actorRef);
+    let actorData = actorSnap.exists ? actorSnap.data() : null;
+    if (!actorData) {
+      const actorQuery = await tx.get(db.collection("users").where("uid", "==", callerUid).limit(1));
+      actorData = actorQuery.empty ? {} : actorQuery.docs[0].data();
+    }
+
+    let nextData = null;
+    if (nextUid) {
+      const nextSnap = await tx.get(userRef(nextUid));
+      nextData = nextSnap.exists ? nextSnap.data() : null;
+      if (!nextData) {
+        const nextQuery = await tx.get(db.collection("users").where("uid", "==", nextUid).limit(1));
+        nextData = nextQuery.empty ? null : nextQuery.docs[0].data();
+      }
+    }
+
+    const actorName = String(actorData?.nama || request.auth.token.name || request.auth.token.email || "Approver");
+    const actorPosition = String(actorData?.jabatan || "");
+    const approvalStatuses = data.approvalStatuses && typeof data.approvalStatuses === "object"
+      ? { ...data.approvalStatuses }
+      : {};
+    approvalStatuses[callerUid] = decision;
+
+    const common = {
+      approvalStatuses,
+      approvedByUid: callerUid,
+      approvedByName: actorName,
+      approvedByJabatan: actorPosition,
+      approvedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (decision === "ditolak") {
+      tx.update(requestRef, {
+        ...common,
+        status: "ditolak",
+        approvalLocked: true,
+        currentApproverUid: "",
+        currentApproverName: "",
+        currentApproverJabatan: "",
+      });
+      return { status: "ditolak", nextApproverUid: "" };
+    }
+
+    if (nextUid) {
+      approvalStatuses[nextUid] = "menunggu";
+      tx.update(requestRef, {
+        ...common,
+        status: "menunggu",
+        approvalStatuses,
+        currentApproverUid: nextUid,
+        currentApproverName: String(nextData?.nama || nextData?.name || ""),
+        currentApproverJabatan: String(nextData?.jabatan || ""),
+        approvalLocked: false,
+      });
+      return { status: "menunggu", nextApproverUid: nextUid };
+    }
+
+    tx.update(requestRef, {
+      ...common,
+      status: "disetujui",
+      approvalLocked: true,
+      currentApproverUid: "",
+      currentApproverName: "",
+      currentApproverJabatan: "",
+    });
+    return { status: "disetujui", nextApproverUid: "" };
+  });
+
+  return { success: true, documentId, ...result };
+});
