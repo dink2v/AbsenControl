@@ -634,7 +634,13 @@ export default function HomePage() {
       setActiveSection("Dashboard");
       window.setTimeout(() => setActiveSection("Data Karyawan"), 0);
     } catch (cause: unknown) {
-      if (createdAuthUser) { try { await deleteUser(createdAuthUser); } catch { /* preserve original failure */ } }
+      // Best-effort rollback: don't leave Firestore profile/admin documents behind
+      // if provisioning the new Firebase Authentication account fails partway through.
+      if (createdAuthUser) {
+        try { await deleteDoc(doc(db, "controlAdmins", createdAuthUser.uid)); } catch { /* preserve original failure */ }
+        try { await deleteDoc(doc(db, "users", createdAuthUser.uid)); } catch { /* preserve original failure */ }
+        try { await deleteUser(createdAuthUser); } catch { /* preserve original failure */ }
+      }
       const code = typeof cause === "object" && cause !== null && "code" in cause ? String((cause as {code?: unknown}).code ?? "") : "";
       if (code === "auth/email-already-in-use") setError("Email ini sudah terdaftar di Firebase Authentication. Gunakan email lain atau hubungkan akun yang sudah ada.");
       else if (code === "auth/weak-password") setError("Password terlalu lemah. Gunakan minimal 6 karakter.");
