@@ -15,7 +15,7 @@ import {
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db, firebaseConfigured } from "../lib/firebase";
 
-type Role = "Manager" | "Owner" | "Admin";
+type Role = "Manager" | "Owner" | "Admin" | "HRD";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
 type EmployeeRecord = { id: string; uid: string; name: string; email: string; department: string; position: string; role: string; status: string; managerRefs: string[]; managerName: string };
 type RequestRecord = { id: string; employee: string; email: string; type: string; status: string; submittedAt: string; startDate: string; endDate: string; reason: string; raw: Record<string, unknown> };
@@ -125,6 +125,7 @@ export default function HomePage() {
           admin: "Admin",
           manager: "Manager",
           owner: "Owner",
+          hrd: "HRD",
         };
         const verifiedRole = roleByKey[String(data?.role ?? "").trim().toLowerCase()];
         if (adminDoc.exists() && data?.active === true && verifiedRole) {
