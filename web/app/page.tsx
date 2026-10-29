@@ -14,6 +14,7 @@ import {
 } from "firebase/auth";
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db, firebaseConfigured } from "../lib/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 type Role = "Manager" | "Owner" | "Admin" | "HRD";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
@@ -657,13 +658,18 @@ export default function HomePage() {
     if (!window.confirm("Hapus data karyawan " + employee.name + "? Tindakan ini tidak dapat dibatalkan.")) return;
     setError("");
     try {
-      // Remove the UID-linked admin access record and profile. Keep attendance,
-      // requests, and complaint history untouched for audit/history purposes.
-      await deleteDoc(doc(db, "controlAdmins", employee.uid || employee.id));
-      await deleteDoc(doc(db, "users", employee.uid || employee.id));
+      if (!auth?.currentUser) throw new Error("Sesi login tidak ditemukan.");
+      const functions = getFunctions(auth.app);
+      const deleteEmployeeAccount = httpsCallable(functions, "deleteEmployeeAccount");
+      await deleteEmployeeAccount({ uid: employee.uid || employee.id });
       setEmployees((current) => current.filter((item) => item.id !== employee.id));
-      setError("Profil dan data akses Admin di Firestore berhasil dihapus. Akun Firebase Authentication perlu dihapus melalui backend tepercaya.");
-    } catch { setError("Gagal menghapus profil/akses di Firestore. Periksa Security Rules untuk users dan controlAdmins."); }
+      setError("Akun Firebase Authentication, profil, dan akses Admin berhasil dihapus. Riwayat absensi/pengajuan/pengaduan tetap dipertahankan.");
+    } catch (cause: unknown) {
+      const code = typeof cause === "object" && cause !== null && "code" in cause ? String((cause as {code?: unknown}).code ?? "") : "";
+      setError(code === "functions/not-found"
+        ? "Fungsi penghapusan belum di-deploy ke Firebase. Deploy Cloud Functions terlebih dahulu."
+        : "Penghapusan akun gagal. Pastikan Cloud Function sudah di-deploy dan akses Admin serta Firebase Rules/konfigurasi sudah benar.");
+    }
   }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
