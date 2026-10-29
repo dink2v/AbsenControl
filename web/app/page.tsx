@@ -657,10 +657,13 @@ export default function HomePage() {
     if (!window.confirm("Hapus data karyawan " + employee.name + "? Tindakan ini tidak dapat dibatalkan.")) return;
     setError("");
     try {
-      await deleteDoc(doc(db, "users", employee.id));
+      // Remove the UID-linked admin access record and profile. Keep attendance,
+      // requests, and complaint history untouched for audit/history purposes.
+      await deleteDoc(doc(db, "controlAdmins", employee.uid || employee.id));
+      await deleteDoc(doc(db, "users", employee.uid || employee.id));
       setEmployees((current) => current.filter((item) => item.id !== employee.id));
-      setError("Data karyawan berhasil dihapus.");
-    } catch { setError("Gagal menghapus data karyawan. Periksa Firestore Security Rules untuk koleksi users."); }
+      setError("Profil dan data akses Admin di Firestore berhasil dihapus. Akun Firebase Authentication perlu dihapus melalui backend tepercaya.");
+    } catch { setError("Gagal menghapus profil/akses di Firestore. Periksa Security Rules untuk users dan controlAdmins."); }
   }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
