@@ -1686,3 +1686,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     white-space: normal;
   }
 }
+
+
+/* Detailed approver timeline in the Pengajuan table. */
+.request-table { min-width: 1180px; }
+.request-approval-list { display: flex; flex-direction: column; gap: 9px; min-width: 150px; }
+.request-approval-step { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 9px 10px; border: 1px solid #e2e8dd; border-radius: 9px; background: #f8faf6; }
+.request-approval-step strong { font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.request-approval-step small { color: #788174; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.request-approval-step .employee-status { display: inline-flex; margin-top: 2px; white-space: normal; }
+@media (max-width: 640px) {
+  .request-table { min-width: 1080px; }
+  .request-approval-list { min-width: 130px; }
+  .request-approval-step { padding: 8px; }
+}
