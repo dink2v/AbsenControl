@@ -57,7 +57,7 @@ export default function HomePage() {
   const [employeeFormOpen, setEmployeeFormOpen] = useState(false);
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [employeeSaving, setEmployeeSaving] = useState(false);
-  const [employeeForm, setEmployeeForm] = useState({ name: "", email: "", password: "", department: "", position: "", status: "Aktif" });
+  const [employeeForm, setEmployeeForm] = useState({ name: "", email: "", password: "", department: "", position: "", role: "Karyawan", status: "Aktif" });
   const [attendanceRows, setAttendanceRows] = useState<{id:string;name:string;date:string;checkIn:string;checkOut:string;status:string;office:string;officeAddress:string;coordinates:string}[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSearch, setAttendanceSearch] = useState("");
@@ -567,7 +567,7 @@ export default function HomePage() {
 
   function openEmployeeForm(employee?: EmployeeRecord) {
     setEditingEmployeeId(employee?.id ?? null);
-    setEmployeeForm({ name: employee?.name === "Tanpa nama" ? "" : employee?.name ?? "", email: employee?.email ?? "", password: "", department: employee?.department ?? "", position: employee?.position ?? "", status: employee?.status ?? "Aktif" });
+    setEmployeeForm({ name: employee?.name === "Tanpa nama" ? "" : employee?.name ?? "", email: employee?.email ?? "", password: "", department: employee?.department ?? "", position: employee?.position ?? "", role: ["admin", "owner", "hrd", "manager"].includes((employee?.role ?? "").trim().toLowerCase()) ? "Admin" : "Karyawan", status: employee?.status ?? "Aktif" });
     setEmployeeFormOpen(true);
     setError("");
   }
@@ -589,11 +589,19 @@ export default function HomePage() {
         nama: name, name, email: employeeEmail,
         departemen: employeeForm.department.trim(),
         jabatan: employeeForm.position.trim(),
+        role: employeeForm.role,
         status: employeeForm.status,
         updatedAt: serverTimestamp(),
       };
       if (editingEmployeeId) {
         await updateDoc(doc(db, "users", editingEmployeeId), commonPayload);
+        if (employeeForm.role === "Admin") {
+          await setDoc(doc(db, "controlAdmins", editingEmployeeId), { uid: editingEmployeeId, name, email: employeeEmail, role: "Admin", active: employeeForm.status === "Aktif", updatedAt: serverTimestamp() }, { merge: true });
+        } else {
+          const adminRef = doc(db, "controlAdmins", editingEmployeeId);
+          const adminSnap = await getDoc(adminRef);
+          if (adminSnap.exists()) await updateDoc(adminRef, { role: "Karyawan", active: false, updatedAt: serverTimestamp() });
+        }
       } else {
         // Use a named secondary Firebase app so creating a staff account won't sign out the admin.
         const secondaryAppName = "absen-control-employee-creator";
@@ -603,18 +611,21 @@ export default function HomePage() {
         const credential = await createUserWithEmailAndPassword(secondaryAuth, employeeEmail, employeeForm.password);
         createdAuthUser = credential.user;
         await setDoc(doc(db, "users", credential.user.uid), {
-          ...commonPayload, uid: credential.user.uid, role: "Karyawan", createdAt: serverTimestamp(),
+          ...commonPayload, uid: credential.user.uid, role: employeeForm.role, createdAt: serverTimestamp(),
         });
+        if (employeeForm.role === "Admin") {
+          await setDoc(doc(db, "controlAdmins", credential.user.uid), { uid: credential.user.uid, name, email: employeeEmail, role: "Admin", active: employeeForm.status === "Aktif", createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        }
         await signOut(secondaryAuth);
       }
       const id = editingEmployeeId ?? createdAuthUser?.uid ?? "";
       setEmployeeFormOpen(false);
-      setEmployeeForm({ name: "", email: "", password: "", department: "", position: "", status: "Aktif" });
+      setEmployeeForm({ name: "", email: "", password: "", department: "", position: "", role: "Karyawan", status: "Aktif" });
       setEmployees((current) => {
         const row: EmployeeRecord = {
           id, uid: id, name, email: employeeEmail,
           department: employeeForm.department.trim(), position: employeeForm.position.trim(),
-          role: editingEmployeeId ? current.find((item) => item.id === editingEmployeeId)?.role ?? "Karyawan" : "Karyawan",
+          role: employeeForm.role,
           status: employeeForm.status, managerRefs: [], managerName: "",
         };
         return (editingEmployeeId ? current.map((item) => item.id === editingEmployeeId ? { ...item, ...row } : item) : [...current, row]).sort((a,b) => a.name.localeCompare(b.name, "id"));
@@ -903,9 +914,10 @@ export default function HomePage() {
               {!editingEmployeeId && <label>Password awal *<input type="password" required minLength={6} autoComplete="new-password" value={employeeForm.password} onChange={(event) => setEmployeeForm((form) => ({...form, password:event.target.value}))} placeholder="Minimal 6 karakter" /></label>}
               <label>Divisi<input value={employeeForm.department} onChange={(event) => setEmployeeForm((form) => ({...form, department:event.target.value}))} placeholder="Contoh: Operasional" /></label>
               <label>Jabatan<input value={employeeForm.position} onChange={(event) => setEmployeeForm((form) => ({...form, position:event.target.value}))} placeholder="Contoh: Staff" /></label>
+              <label>Role akun<select value={employeeForm.role} onChange={(event) => setEmployeeForm((form) => ({...form, role:event.target.value}))}><option value="Karyawan">Karyawan</option><option value="Admin">Admin</option></select></label>
               <label>Status<select value={employeeForm.status} onChange={(event) => setEmployeeForm((form) => ({...form, status:event.target.value}))}><option>Aktif</option><option>Nonaktif</option></select></label>
             </div>
-            <p className="small-note">Password hanya digunakan untuk membuat akun Firebase Authentication dan tidak disimpan di Firestore. Akun baru mendapat role Karyawan. Email akun yang sudah ada tidak diubah dari formulir ini.</p>
+            <p className="small-note">Akun memakai UID yang sama dengan Firebase Authentication dan dokumen users. Role Admin disinkronkan ke controlAdmins; penyimpanan memerlukan Firestore Rules yang mengizinkan Admin/Owner tepercaya mengelola dokumen tersebut. Password tidak disimpan di Firestore. Email akun yang sudah ada tidak diubah dari formulir ini.</p>
             <div className="employee-form-actions"><button className="primary-button" type="submit" disabled={employeeSaving}>{employeeSaving ? "Menyimpan…" : editingEmployeeId ? "Simpan perubahan" : "Simpan karyawan"}</button></div>
           </form>}
           <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
