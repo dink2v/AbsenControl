@@ -19,7 +19,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 type Role = "Supervisor" | "Manager" | "Owner" | "Admin" | "HRD";
 type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
 type EmployeeRecord = { id: string; uid: string; name: string; email: string; department: string; position: string; role: string; status: string; managerRefs: string[]; managerName: string };
-type RequestRecord = { id: string; employee: string; email: string; type: string; status: string; submittedAt: string; startDate: string; endDate: string; reason: string; raw: Record<string, unknown> };
+type ApprovalDetail = { name: string; uid: string; role: string; status: string; at: string; note: string }; type RequestRecord = { id: string; employee: string; email: string; type: string; status: string; submittedAt: string; startDate: string; endDate: string; reason: string; approvals: ApprovalDetail[]; currentApprover: string; raw: Record<string, unknown> };
 type ComplaintRecord = { id: string; employee: string; email: string; subject: string; message: string; status: string; updatedAt: string }; type ChatMessage = { id: string; text: string; sender: string; senderName: string; createdAt: string };
 
 const roleDescriptions: Record<Role, string> = {
@@ -362,8 +362,38 @@ export default function HomePage() {
           }
           return "";
         };
+        const approvalArrayKeys = ["approvalChain", "approvals", "approvalHistory", "riwayatPersetujuan", "persetujuan", "approverHistory", "approvalSteps", "historyApproval"];
         const rows = snapshot.docs.map((item) => {
           const data = item.data() as Record<string, unknown>;
+          const approvalSource = approvalArrayKeys.map((key) => data[key]).find(Array.isArray);
+          const approvals: ApprovalDetail[] = Array.isArray(approvalSource)
+            ? approvalSource.map((entry) => {
+                if (typeof entry === "string") return { name: entry, uid: "", role: "", status: "", at: "", note: "" };
+                if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+                const step = entry as Record<string, unknown>;
+                return {
+                  name: pick(step, ["approverName", "approvedByName", "namaApprover", "namaAtasan", "nama", "name", "displayName", "email"]) || "",
+                  uid: pick(step, ["approverUid", "approvedByUid", "uid", "userId", "approvedBy", "approvedById"]) || "",
+                  role: pick(step, ["role", "jabatan", "position", "approverRole"]) || "",
+                  status: pick(step, ["status", "decision", "action", "approvalStatus", "state"]) || "",
+                  at: pick(step, ["approvedAt", "actedAt", "updatedAt", "createdAt", "timestamp", "waktu", "tanggal", "processedAt"]) || "",
+                  note: pick(step, ["note", "comment", "catatan", "alasan", "reason", "keterangan"]) || "",
+                } satisfies ApprovalDetail;
+              }).filter((entry): entry is ApprovalDetail => entry !== null)
+            : [];
+          if (approvals.length === 0) {
+            const scalarApprover = pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju", "approvedBy", "approver", "approvedByUid", "approverUid", "approvedById"]);
+            const scalarStatus = pick(data, ["approvalStatus", "approvalDecision", "decision", "approvalAction"]);
+            const scalarAt = pick(data, ["approvedAt", "approvalAt", "approved_at", "tanggalPersetujuan", "waktuPersetujuan"]);
+            if (scalarApprover || scalarStatus || scalarAt) approvals.push({
+              name: pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju"]) || "",
+              uid: pick(data, ["approvedByUid", "approverUid", "approvedById", "approvedBy", "approver"]) || "",
+              role: pick(data, ["approverRole", "jabatanApprover", "approvalRole"]) || "",
+              status: scalarStatus || "Tercatat",
+              at: scalarAt,
+              note: pick(data, ["approvalNote", "catatanPersetujuan", "approvalReason"]) || "",
+            });
+          }
           return {
             id: item.id,
             employee: pick(data, ["nama", "namaKaryawan", "namaLengkap", "name", "fullName", "karyawan", "pemohon", "userName", "displayName", "email"]) || "Pemohon tidak tercantum",
@@ -374,6 +404,8 @@ export default function HomePage() {
             startDate: pick(data, ["tanggalMulai", "mulai", "tanggalAwal", "startDate", "dariTanggal", "tanggalIzin"]),
             endDate: pick(data, ["tanggalSelesai", "selesai", "tanggalAkhir", "endDate", "sampaiTanggal"]),
             reason: pick(data, ["alasan", "keterangan", "deskripsi", "reason", "catatan", "detail", "pesan"]),
+            approvals,
+            currentApprover: pick(data, ["currentApproverName", "currentApproverUid", "currentApprover", "pendingApprover", "approverSaatIni"]) || "",
             raw: data,
           } satisfies RequestRecord;
         }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt, "id"));
@@ -1038,13 +1070,13 @@ export default function HomePage() {
             <button type="button" className="logout-button" onClick={() => { setRequestSearch(""); setRequestStatus("Semua"); }}>Reset filter</button>
             <button type="button" className="primary-button request-refresh" onClick={() => setRequestReloadKey((key) => key + 1)} disabled={requestsLoading} title="Muat ulang data dari Firestore">{requestsLoading ? "Memuat…" : "Muat ulang"}</button>
           </div>
-          {requestsLoading ? <p className="employee-state">Memuat semua pengajuan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table request-table"><thead><tr><th>Pemohon</th><th>Jenis</th><th>Tanggal pengajuan</th><th>Periode</th><th>Alasan / keterangan</th><th>Status</th><th>ID dokumen</th><th>Tindakan</th></tr></thead><tbody>
-            {requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td><strong>{item.employee}</strong>{item.email && <small>{item.email}</small>}</td><td>{item.type}</td><td>{item.submittedAt || "—"}</td><td>{item.startDate || item.endDate ? <>{item.startDate || "—"}{item.endDate ? ` s.d. ${item.endDate}` : ""}</> : "—"}</td><td className="request-reason">{item.reason || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+          {requestsLoading ? <p className="employee-state">Memuat semua pengajuan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table request-table"><thead><tr><th>Pemohon</th><th>Jenis</th><th>Tanggal pengajuan</th><th>Periode</th><th>Alasan / keterangan</th><th>Status</th><th>Riwayat persetujuan</th><th>Approver saat ini</th><th>ID dokumen</th></tr></thead><tbody>
+            {requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, item.currentApprover, JSON.stringify(item.approvals), JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td><strong>{item.employee}</strong>{item.email && <small>{item.email}</small>}</td><td>{item.type}</td><td>{item.submittedAt || "—"}</td><td>{item.startDate || item.endDate ? <>{item.startDate || "—"}{item.endDate ? ` s.d. ${item.endDate}` : ""}</> : "—"}</td><td className="request-reason">{item.reason || "—"}</td><td><span className="employee-status">{item.status}</span></td><td>{item.approvals.length ? <div className="request-approval-list">{item.approvals.map((approval, index) => <div className="request-approval-step" key={`${item.id}-approval-${index}`}><strong>{approval.name || approval.uid || `Approver ${index + 1}`}</strong>{approval.role && <small>{approval.role}</small>}<span className="employee-status">{approval.status || "Status belum dicatat"}</span>{approval.at && <small>{approval.at}</small>}{approval.note && <small>{approval.note}</small>}</div>)}</div> : <small>Belum ada detail persetujuan yang tersimpan.</small>}</td><td>{item.currentApprover || "—"}</td><td><small>{item.id}</small></td></tr>)}
           </tbody></table>
           {requestRows.length === 0 && <p className="employee-state">Koleksi <code>pengajuan</code> belum memiliki dokumen atau belum ada data yang berhasil dibaca.</p>}
           {requestRows.length > 0 && requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada pengajuan yang cocok dengan pencarian atau filter status.</p>}
           </div>}
-          <p className="small-note">Mode pemeriksaan: seluruh dokumen ditampilkan tanpa mengubah atau menghapus data. Approve/Tolak hanya tampil pada approver yang tercatat sebagai currentApproverUid. Keputusan diproses melalui Cloud Function dan status berikutnya mengikuti approvalChain.</p>
+          <p className="small-note">Riwayat persetujuan dibaca dari field approvalChain, approvals, approvalHistory, atau field approver yang tersedia pada dokumen. Jika nama atau waktu persetujuan tidak tersimpan di Firestore, panel menampilkan UID atau keterangan bahwa detail belum tercatat—tidak membuat data persetujuan sendiri. Halaman ini tetap bersifat baca-saja.</p>
         </section> : activeSection === "Dashboard" ? <>
         <section className="summary-grid" aria-label="Ringkasan">
           <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
