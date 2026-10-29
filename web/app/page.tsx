@@ -659,7 +659,7 @@ export default function HomePage() {
     setError("");
     try {
       if (!auth?.currentUser) throw new Error("Sesi login tidak ditemukan.");
-      const functions = getFunctions(auth.app);
+      const functions = getFunctions(auth.app, "asia-southeast1");
       const deleteEmployeeAccount = httpsCallable(functions, "deleteEmployeeAccount");
       await deleteEmployeeAccount({ uid: employee.uid || employee.id });
       setEmployees((current) => current.filter((item) => item.id !== employee.id));
