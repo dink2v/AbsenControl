@@ -77,7 +77,8 @@ function replaceUidValues(value, oldUid, newUid) {
   }
   if (value && typeof value === "object" && !(value instanceof Date)) {
     // Preserve Firestore special values (timestamps, references, geopoints, bytes).
-    if (typeof value.toDate === "function" || typeof value.path === "string" ||
+    if (Object.getPrototypeOf(value) !== Object.prototype ||
+        typeof value.toDate === "function" || typeof value.path === "string" ||
         typeof value.latitude === "number" || typeof value.longitude === "number") {
       return { value, changed: false };
     }
@@ -175,11 +176,13 @@ exports.migrateAccountUid = onCall({ region: "asia-southeast1", timeoutSeconds: 
   }
 
   if (oldUserSnap.exists) {
-    writes.push({ ref: newUserRef, data: mergeData(oldUserSnap.data(), newUserSnap.data()), merge: true });
+    const merged = replaceUidValues(mergeData(oldUserSnap.data(), newUserSnap.data()), oldUid, newUid).value;
+    writes.push({ ref: newUserRef, data: merged, merge: true });
     writes.push({ ref: oldUserRef, delete: true });
   }
   if (oldAdminSnap.exists) {
-    writes.push({ ref: newAdminRef, data: mergeData(oldAdminSnap.data(), newAdminSnap.data()), merge: true });
+    const merged = replaceUidValues(mergeData(oldAdminSnap.data(), newAdminSnap.data()), oldUid, newUid).value;
+    writes.push({ ref: newAdminRef, data: merged, merge: true });
     writes.push({ ref: oldAdminRef, delete: true });
   }
 
