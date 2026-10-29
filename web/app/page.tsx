@@ -291,7 +291,7 @@ export default function HomePage() {
             }
             return "";
           };
-          const office = pickLocation("namaKantor", "kantorNama", "officeName", "office", "namaCabang", "cabang", "lokasiKantor", "workLocation")
+          const office = pickLocation("namaKantor", "kantorNama", "officeName", "office", "kantor", "lokasi", "namaCabang", "cabang", "lokasiKantor", "workLocation")
             || pickLocationFromNested(locationData, "name", "nama", "officeName", "namaKantor");
           const officeAddress = pickLocation("alamatKantor", "officeAddress", "alamatCabang", "officeAddressText")
             || pickLocationFromNested(locationData, "address", "alamat", "officeAddress");
