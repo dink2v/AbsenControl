@@ -1068,8 +1068,12 @@ export default function HomePage() {
           <p className="small-note">Riwayat persetujuan dibaca dari field approvalChain, approvals, approvalHistory, atau field approver yang tersedia pada dokumen. Jika nama atau waktu persetujuan tidak tersimpan di Firestore, panel menampilkan UID atau keterangan bahwa detail belum tercatat—tidak membuat data persetujuan sendiri. Halaman ini tetap bersifat baca-saja.</p>
         </section> : activeSection === "Dashboard" ? <>
         <section className="content-card dashboard-quick-menu">
-          <div className="section-heading"><div><h3>Akses cepat</h3><p>Pilih menu yang ingin dibuka. Detail ditampilkan di halaman masing-masing agar Beranda tetap ringkas.</p></div><span className="module-count">{menuItems.length - 1} menu</span></div>
-          <div className="module-grid dashboard-button-grid">{menuItems.filter((item) => item.title !== "Dashboard").map((item) => <button className="module-tile dashboard-module-button" key={item.title} type="button" onClick={() => { setActiveSection(item.title); setError(""); }}><span className="module-icon">{item.icon}</span><strong>{item.title}</strong><span className="tile-arrow">↗</span></button>)}</div>
+          <div className="section-heading"><div><h3>Akses menu</h3><p>Pilih menu dari daftar di bawah untuk membuka halaman yang kamu butuhkan.</p></div></div>
+          <label className="dashboard-menu-label" htmlFor="dashboard-menu-select">Pilih halaman</label>
+          <select id="dashboard-menu-select" className="dashboard-menu-select" defaultValue="" onChange={(event) => { if (event.target.value) { setActiveSection(event.target.value); setError(""); } }}>
+            <option value="" disabled>— Pilih menu ABSEN CONTROL —</option>
+            {menuItems.filter((item) => item.title !== "Dashboard").map((item) => <option key={item.title} value={item.title}>{item.title}</option>)}
+          </select>
         </section>
         </> : activeSection === "Laporan" ? <section className="content-card employees-panel reports-panel">
           <div className="section-heading"><div><h3>Laporan Kehadiran</h3><p>Ringkasan memakai data absensi yang sama dengan menu Absensi agar tidak membaca ulang koleksi.</p></div><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Perbarui laporan"}</button></div>
