@@ -1706,7 +1706,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 .request-approval-detail-button{border:1px solid #d9e2d4;background:#f6f8f4;color:var(--forest);border-radius:9px;padding:8px 11px;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer}
 .request-approval-detail-button:hover{background:#edf2e9;border-color:#aab9a5}
-.request-approval-modal-backdrop{position:fixed;inset:0;z-index:1000;background:#101a16a8;display:flex;align-items:center;justify-content:center;padding:20px}
+.request-approval-modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(16,26,22,.42);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px}
 .request-approval-modal{width:min(560px,100%);max-height:min( min(80vh,720px),100%);overflow:auto;background:#fff;border:1px solid #e3e9df;border-radius:18px;padding:22px;box-shadow:0 24px 80px #0003}
 .request-approval-modal-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:16px;border-bottom:1px solid #edf0eb}
 .request-approval-modal-heading h3{margin:0 0 5px;color:var(--forest);font-size:18px}
