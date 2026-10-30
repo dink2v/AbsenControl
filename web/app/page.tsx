@@ -1,0 +1,1130 @@
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import { getApp, getApps, initializeApp } from "firebase/app";
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut,
+  User,
+} from "firebase/auth";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { auth, db, firebaseConfigured } from "../lib/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
+
+type Role = "Supervisor" | "Manager" | "Owner" | "Admin" | "HRD";
+type AccessState = "checking" | "signed-out" | "allowed" | "denied" | "setup";
+type EmployeeRecord = { id: string; uid: string; name: string; email: string; department: string; position: string; role: string; status: string; managerRefs: string[]; managerName: string };
+type ApprovalDetail = { name: string; uid: string; role: string; status: string; at: string; note: string }; type RequestRecord = { id: string; employee: string; email: string; type: string; status: string; submittedAt: string; startDate: string; endDate: string; reason: string; approvals: ApprovalDetail[]; currentApprover: string; raw: Record<string, unknown> };
+type ComplaintRecord = { id: string; employee: string; email: string; subject: string; message: string; status: string; updatedAt: string }; type ChatMessage = { id: string; text: string; sender: string; senderName: string; createdAt: string };
+
+function formatAttendanceDate(value: string) {
+  const match = value.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  const parsed = new Date(value);
+  if (!value || Number.isNaN(parsed.getTime())) return value || "—";
+  return new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "2-digit", year: "numeric" }).format(parsed);
+}
+
+const roleDescriptions: Record<Role, string> = {
+  Supervisor: "Persetujuan pengajuan sesuai jalur atasan",
+  Manager: "Pemantauan tim dan pengajuan sesuai wewenang",
+  HRD: "Pengelolaan sumber daya manusia dan pemantauan absensi sesuai wewenang",
+  Owner: "Akses penuh untuk melihat dan mengelola seluruh sistem",
+  Admin: "Akses penuh untuk melihat, mengelola sistem, dan mengangkat Admin baru",
+};
+
+const menuItems = [
+  { icon: "▦", title: "Dashboard", description: "Ringkasan operasional" },
+  { icon: "♙", title: "Data Karyawan", description: "Daftar dan informasi karyawan" },
+  { icon: "◷", title: "Absensi", description: "Rekap kehadiran karyawan" },
+  { icon: "▤", title: "Pengajuan", description: "Izin, cuti, dan koreksi absensi" },
+  { icon: "✉", title: "Chat Pengaduan", description: "Percakapan dan tindak lanjut pengaduan karyawan" },
+  { icon: "▥", title: "Laporan", description: "Rekap dan laporan kehadiran" },
+  { icon: "⚙", title: "Pengaturan", description: "Akun, role, dan konfigurasi sistem" },
+];
+
+export default function HomePage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [access, setAccess] = useState<AccessState>("checking");
+  const [role, setRole] = useState<Role | null>(null);
+  const [accessProfile, setAccessProfile] = useState<Record<string, unknown>>({});
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [stats, setStats] = useState({ employees: "—", present: "—", pending: "—", review: "—" });
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [activeSection, setActiveSection] = useState("Dashboard");
+  
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeeFormOpen, setEmployeeFormOpen] = useState(false);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+  const [employeeSaving, setEmployeeSaving] = useState(false);
+  const [employeeForm, setEmployeeForm] = useState({ name: "", email: "", password: "", department: "", position: "", role: "Karyawan", status: "Aktif" });
+  const [attendanceRows, setAttendanceRows] = useState<{id:string;name:string;date:string;checkIn:string;checkOut:string;status:string;office:string;officeAddress:string;coordinates:string}[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceSearch, setAttendanceSearch] = useState("");
+  const [attendanceDate, setAttendanceDate] = useState("");
+  const [attendanceLoaded, setAttendanceLoaded] = useState(false);
+  const [attendanceLoadedKey, setAttendanceLoadedKey] = useState(-1);
+  const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
+  const [requestRows, setRequestRows] = useState<RequestRecord[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestSearch, setRequestSearch] = useState("");
+  const [requestStatus, setRequestStatus] = useState("Semua");
+  const [requestReloadKey, setRequestReloadKey] = useState(0);
+  const [requestLoadedKey, setRequestLoadedKey] = useState(-1);
+  const [requestActionId, setRequestActionId] = useState<string | null>(null);
+  const [selectedApprovalRequest, setSelectedApprovalRequest] = useState<RequestRecord | null>(null);
+  const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
+  const [complaintsLoading, setComplaintsLoading] = useState(false);
+  const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatReply, setChatReply] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [settingsNotice, setSettingsNotice] = useState("");
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [attendanceSettingsLoading, setAttendanceSettingsLoading] = useState(false);
+  const [attendanceSettingsSaving, setAttendanceSettingsSaving] = useState(false);
+  const [attendanceSettingsLoaded, setAttendanceSettingsLoaded] = useState(false);
+  const [attendanceSettingsError, setAttendanceSettingsError] = useState("");
+  const [attendanceSettings, setAttendanceSettings] = useState({
+    enabled: true, checkInStart: "07:00", checkInEnd: "09:00",
+    checkOutStart: "16:00", checkOutEnd: "18:00",
+    lateToleranceMinutes: 15, geofenceRadiusMeters: 100, requireLocation: true,
+  });
+
+  useEffect(() => {
+    if (!auth) {
+      setAccess("setup");
+      return;
+    }
+    const currentAuth = auth;
+    return onAuthStateChanged(currentAuth, async (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser || !db) {
+        // Keep the access-check error visible after signOut; otherwise the
+        // auth-state callback immediately clears the reason login was rejected.
+        setRole(null);
+        setAccess("signed-out");
+        return;
+      }
+      setError("");
+      setAccess("checking");
+      try {
+        // Avoid leaving the full-screen access checker spinning forever if Firestore
+        // cannot complete the access-profile read (for example, network/rules issues).
+        const adminDoc = await Promise.race([
+          getDoc(doc(db, "controlAdmins", currentUser.uid)),
+          new Promise<never>((_, reject) =>
+            window.setTimeout(
+              () => reject(new Error("ACCESS_CHECK_TIMEOUT")),
+              12000,
+            ),
+          ),
+        ]);
+        const data = adminDoc.data();
+        // Only these three roles may access the web admin panel.
+        // Normalize case so "MANAGER" and "Manager" are treated consistently.
+        const roleByKey: Record<string, Role> = {
+          supervisor: "Supervisor",
+          admin: "Admin",
+          manager: "Manager",
+          owner: "Owner",
+          hrd: "HRD",
+        };
+        const verifiedRole = roleByKey[String(data?.role ?? "").trim().toLowerCase()];
+        if (adminDoc.exists() && data?.active === true && verifiedRole) {
+          setAccessProfile(data ?? {});
+          setRole(verifiedRole);
+          setAccess("allowed");
+        } else {
+          setRole(null);
+          setAccessProfile({});
+          setAccess("denied");
+          await signOut(currentAuth);
+        }
+      } catch (cause: unknown) {
+        setRole(null);
+        setAccessProfile({});
+        setAccess("denied");
+        setError(
+          cause instanceof Error && cause.message === "ACCESS_CHECK_TIMEOUT"
+            ? "Pemeriksaan akses ke Firestore melewati 12 detik. Cek koneksi dan aturan Firestore untuk dokumen controlAdmins."
+            : "Tidak bisa memverifikasi hak akses. Pastikan dokumen controlAdmins dengan ID UID akun ini ada, active bernilai true, dan role bernilai Admin, Manager, atau Owner; cek juga aturan Firestore.",
+        );
+        await signOut(currentAuth);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db) return;
+    const currentDb = db;
+    let cancelled = false;
+    const loadDashboardStats = async () => {
+      setStatsLoading(true);
+      try {
+        const [usersSnapshot, attendanceSnapshot, requestsSnapshot] = await Promise.all([
+          getDocs(collection(currentDb, "users")),
+          getDocs(collection(currentDb, "attendance")),
+          getDocs(collection(currentDb, "pengajuan")),
+        ]);
+        const today = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Jakarta",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+        const presentToday = attendanceSnapshot.docs.filter((item) => {
+          const data = item.data();
+          return data.tanggal === today && String(data.status ?? "").toLowerCase() === "hadir";
+        }).length;
+        const pendingRequests = requestsSnapshot.docs.filter((item) => {
+          const status = String(item.data().status ?? "").toLowerCase();
+          return status === "menunggu" || status === "pending" || status === "menunggu persetujuan";
+        }).length;
+        if (!cancelled) {
+          setStats({
+            employees: String(usersSnapshot.size),
+            present: String(presentToday),
+            pending: String(pendingRequests),
+            review: String(pendingRequests),
+          });
+          setError("");
+        }
+      } catch {
+        if (!cancelled) {
+          setStats({ employees: "—", present: "—", pending: "—", review: "—" });
+          setError("Data dashboard belum bisa dibaca. Periksa Firestore Security Rules untuk akun admin.");
+        }
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    };
+    void loadDashboardStats();
+    return () => { cancelled = true; };
+  }, [access, user]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || !["Data Karyawan", "Struktur Organisasi"].includes(activeSection)) return;
+    const currentDb = db;
+    let cancelled = false;
+    const loadEmployees = async () => {
+      setEmployeesLoading(true);
+      setError("");
+      try {
+        const snapshot = await getDocs(collection(currentDb, "users"));
+        const rows = snapshot.docs.map((item) => {
+          const data = item.data();
+          const pick = (...keys: string[]) => {
+            for (const key of keys) {
+              const value = data[key];
+              if (typeof value === "string" && value.trim()) return value.trim();
+            }
+            return "";
+          };
+          const managerRefs = [
+            "managerId", "managerUid", "managerUserId", "managerEmail", "manager_id",
+            "atasanId", "idAtasan", "atasanUid", "atasanEmail", "reportsTo",
+            "supervisorId", "supervisorUid", "leaderId", "managerName", "namaAtasan",
+            "atasan", "supervisorName",
+          ].map((key) => data[key]).filter((value): value is string => {
+            if (typeof value !== "string") return false;
+            const normalized = value.trim().toLowerCase();
+            return Boolean(normalized) && !["kosong", "null", "undefined", "-", "n/a"].includes(normalized);
+          }).map((value) => value.trim().toLowerCase());
+          return {
+            id: item.id,
+            uid: pick("uid", "userId", "authUid", "firebaseUid") || item.id,
+            name: pick("nama", "name", "namaLengkap", "fullName", "displayName") || "Tanpa nama",
+            email: pick("email", "emailAddress").toLowerCase(),
+            department: pick("departemen", "department", "divisi", "division"),
+            position: pick("jabatan", "position", "jobTitle", "title"),
+            role: pick("role", "peran") || "Karyawan",
+            status: pick("status", "statusAkun", "accountStatus") || "Aktif",
+            managerRefs,
+            managerName: pick("managerName", "namaAtasan", "atasan", "supervisorName"),
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name, "id"));
+        if (!cancelled) setEmployees(rows);
+      } catch {
+        if (!cancelled) {
+          setEmployees([]);
+          setError("Data karyawan belum bisa dibaca. Pastikan akun admin diizinkan membaca koleksi users pada Firestore Security Rules.");
+        }
+      } finally {
+        if (!cancelled) setEmployeesLoading(false);
+      }
+    };
+    void loadEmployees();
+    return () => { cancelled = true; };
+  }, [access, user, activeSection]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || !["Absensi", "Laporan"].includes(activeSection) || (attendanceLoaded && attendanceLoadedKey === attendanceReloadKey)) return;
+    const currentDb = db;
+    let cancelled = false;
+    const loadAttendance = async () => {
+      setAttendanceLoading(true);
+      setError("");
+      try {
+        const snapshot = await getDocs(collection(currentDb, "attendance"));
+        const rows = snapshot.docs.map((item) => {
+          const data = item.data();
+          const pick = (...keys: string[]) => {
+            for (const key of keys) {
+              const value = data[key];
+              if (typeof value === "string" && value.trim()) return value.trim();
+            }
+            return "";
+          };
+          const locationData = [data.officeLocation, data.lokasiKantor, data.location, data.lokasi]
+            .find((value) => typeof value === "object" && value !== null && !Array.isArray(value)) as Record<string, unknown> | undefined;
+          const pickLocation = (...keys: string[]) => {
+            for (const source of [data, locationData ?? {}]) {
+              for (const key of keys) {
+                const value = source[key];
+                if ((typeof value === "string" || typeof value === "number") && String(value).trim()) return String(value).trim();
+              }
+            }
+            return "";
+          };
+          const pickLocationFromNested = (source: Record<string, unknown> | undefined, ...keys: string[]) => {
+            if (!source) return "";
+            for (const key of keys) {
+              const value = source[key];
+              if ((typeof value === "string" || typeof value === "number") && String(value).trim()) return String(value).trim();
+            }
+            return "";
+          };
+          const office = pickLocation("namaKantor", "kantorNama", "officeName", "office", "kantor", "lokasi", "namaCabang", "cabang", "lokasiKantor", "workLocation")
+            || pickLocationFromNested(locationData, "name", "nama", "officeName", "namaKantor");
+          const officeAddress = pickLocation("alamatKantor", "officeAddress", "alamatCabang", "officeAddressText")
+            || pickLocationFromNested(locationData, "address", "alamat", "officeAddress");
+          const latitude = pickLocation("latitude", "lat", "gpsLatitude", "lokasiLatitude");
+          const longitude = pickLocation("longitude", "lng", "lon", "gpsLongitude", "lokasiLongitude");
+          const nestedLatitude = pickLocationFromNested(locationData, "latitude", "lat");
+          const nestedLongitude = pickLocationFromNested(locationData, "longitude", "lng", "lon");
+          const coordinates = latitude && longitude ? `${latitude}, ${longitude}`
+            : nestedLatitude && nestedLongitude ? `${nestedLatitude}, ${nestedLongitude}` : "";
+          return {
+            id: item.id,
+            name: pick("nama", "name", "namaLengkap", "fullName") || "Tanpa nama",
+            date: pick("tanggal", "date", "attendanceDate"),
+            checkIn: pick("jamMasuk", "checkIn", "waktuMasuk", "clockIn"),
+            checkOut: pick("jamPulang", "checkOut", "waktuPulang", "clockOut"),
+            status: pick("status") || "Tidak diketahui",
+            office,
+            officeAddress,
+            coordinates,
+          };
+        }).sort((a, b) => b.date.localeCompare(a.date, "id") || a.name.localeCompare(b.name, "id"));
+        if (!cancelled) {
+          setAttendanceRows(rows);
+          setAttendanceLoaded(true);
+          setAttendanceLoadedKey(attendanceReloadKey);
+        }
+      } catch {
+        if (!cancelled) {
+          setAttendanceRows([]);
+          setError("Data absensi belum bisa dibaca. Pastikan akun admin diizinkan membaca koleksi attendance pada Firestore Security Rules.");
+        }
+      } finally {
+        if (!cancelled) setAttendanceLoading(false);
+      }
+    };
+    void loadAttendance();
+    return () => { cancelled = true; };
+  }, [access, user, activeSection, attendanceLoaded, attendanceLoadedKey, attendanceReloadKey]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Pengajuan" || requestLoadedKey === requestReloadKey) return;
+    const currentDb = db;
+    let cancelled = false;
+    const loadRequests = async () => {
+      setRequestsLoading(true);
+      setError("");
+      try {
+        const snapshot = await getDocs(collection(currentDb, "pengajuan"));
+        const readText = (value: unknown): string => {
+          if (value == null) return "";
+          if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+          if (typeof value === "object" && value !== null && "toDate" in value && typeof (value as {toDate?: unknown}).toDate === "function") {
+            return (value as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+          }
+          if (Array.isArray(value)) return value.map(readText).filter(Boolean).join(", ");
+          try { return JSON.stringify(value); } catch { return String(value); }
+        };
+        const pick = (data: Record<string, unknown>, keys: string[]) => {
+          for (const key of keys) {
+            const value = data[key];
+            if (value !== undefined && value !== null && String(value).trim()) return readText(value).trim();
+          }
+          return "";
+        };
+        const approvalArrayKeys = ["approvalChain", "approvals", "approvalHistory", "riwayatPersetujuan", "persetujuan", "approverHistory", "approvalSteps", "historyApproval"];
+        const rows = snapshot.docs.map((item) => {
+          const data = item.data() as Record<string, unknown>;
+          const approvalSource = approvalArrayKeys.map((key) => data[key]).find(Array.isArray);
+          const approvals: ApprovalDetail[] = Array.isArray(approvalSource)
+            ? approvalSource.map((entry) => {
+                if (typeof entry === "string") return { name: entry, uid: "", role: "", status: "", at: "", note: "" };
+                if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+                const step = entry as Record<string, unknown>;
+                return {
+                  name: pick(step, ["approverName", "approvedByName", "namaApprover", "namaAtasan", "nama", "name", "displayName", "email"]) || "",
+                  uid: pick(step, ["approverUid", "approvedByUid", "uid", "userId", "approvedBy", "approvedById"]) || "",
+                  role: pick(step, ["role", "jabatan", "position", "approverRole"]) || "",
+                  status: pick(step, ["status", "decision", "action", "approvalStatus", "state"]) || "",
+                  at: pick(step, ["approvedAt", "actedAt", "updatedAt", "createdAt", "timestamp", "waktu", "tanggal", "processedAt"]) || "",
+                  note: pick(step, ["note", "comment", "catatan", "alasan", "reason", "keterangan"]) || "",
+                } satisfies ApprovalDetail;
+              }).filter((entry): entry is ApprovalDetail => entry !== null)
+            : [];
+          if (approvals.length === 0) {
+            const scalarApprover = pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju", "approvedBy", "approver", "approvedByUid", "approverUid", "approvedById"]);
+            const scalarStatus = pick(data, ["approvalStatus", "approvalDecision", "decision", "approvalAction"]);
+            const scalarAt = pick(data, ["approvedAt", "approvalAt", "approved_at", "tanggalPersetujuan", "waktuPersetujuan"]);
+            if (scalarApprover || scalarStatus || scalarAt) approvals.push({
+              name: pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju"]) || "",
+              uid: pick(data, ["approvedByUid", "approverUid", "approvedById", "approvedBy", "approver"]) || "",
+              role: pick(data, ["approverRole", "jabatanApprover", "approvalRole"]) || "",
+              status: scalarStatus || "Tercatat",
+              at: scalarAt,
+              note: pick(data, ["approvalNote", "catatanPersetujuan", "approvalReason"]) || "",
+            });
+          }
+          return {
+            id: item.id,
+            employee: pick(data, ["nama", "namaKaryawan", "namaLengkap", "name", "fullName", "karyawan", "pemohon", "userName", "displayName", "email"]) || "Pemohon tidak tercantum",
+            email: pick(data, ["email", "emailKaryawan", "userEmail", "pemohonEmail"]),
+            type: pick(data, ["jenis", "jenisPengajuan", "tipe", "type", "kategori", "tipePengajuan", "keperluan"]) || "Pengajuan umum",
+            status: pick(data, ["status", "statusPengajuan", "approvalStatus", "state"]) || "Belum ada status",
+            submittedAt: pick(data, ["createdAt", "created_at", "tanggalPengajuan", "waktuPengajuan", "timestamp", "dibuatPada", "tanggal", "date"]),
+            startDate: pick(data, ["tanggalMulai", "mulai", "tanggalAwal", "startDate", "dariTanggal", "tanggalIzin"]),
+            endDate: pick(data, ["tanggalSelesai", "selesai", "tanggalAkhir", "endDate", "sampaiTanggal"]),
+            reason: pick(data, ["alasan", "keterangan", "deskripsi", "reason", "catatan", "detail", "pesan"]),
+            approvals,
+            currentApprover: pick(data, ["currentApproverName", "currentApproverUid", "currentApprover", "pendingApprover", "approverSaatIni"]) || "",
+            raw: data,
+          } satisfies RequestRecord;
+        }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt, "id"));
+        if (!cancelled) {
+          setRequestRows(rows);
+          setRequestLoadedKey(requestReloadKey);
+        }
+      } catch {
+        if (!cancelled) {
+          setRequestRows([]);
+          setError("Data Pengajuan belum bisa dibaca. Periksa koneksi dan Firestore Security Rules agar akun ini diizinkan membaca koleksi pengajuan.");
+        }
+      } finally {
+        if (!cancelled) setRequestsLoading(false);
+      }
+    };
+    void loadRequests();
+    return () => { cancelled = true; };
+  }, [access, user, activeSection, requestReloadKey, requestLoadedKey]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Chat Pengaduan") return;
+    let cancelled = false;
+    setComplaintsLoading(true);
+    getDocs(collection(db, "chatRooms")).then((snapshot) => {
+      const rows = snapshot.docs.map((item) => {
+        const data = item.data() as Record<string, unknown>;
+        const read = (...keys: string[]) => { for (const key of keys) { const value = data[key]; if (typeof value === "string" && value.trim()) return value.trim(); } return ""; };
+        const rawTime = data.updatedAt;
+        const updatedAt = typeof rawTime === "number"
+          ? new Date(rawTime).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+          : rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function"
+            ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+            : "";
+        return {
+          id: item.id,
+          employee: read("staffName", "employeeName", "namaKaryawan", "name") || "Karyawan",
+          email: read("staffEmail", "employeeEmail", "email"),
+          subject: "Chat Admin",
+          message: read("lastMessage", "message", "pesan") || "Belum ada pesan",
+          status: read("status") || "Percakapan",
+          updatedAt,
+        };
+      }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt, "id"));
+      if (!cancelled) {
+        setComplaints(rows);
+        setSelectedComplaintId((current) => current && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? null);
+      }
+    }).catch(() => {
+      if (!cancelled) setError("Daftar chat belum bisa dibaca. Pastikan Firestore Security Rules mengizinkan admin membaca koleksi chatRooms.");
+    }).finally(() => { if (!cancelled) setComplaintsLoading(false); });
+    return () => { cancelled = true; };
+  }, [access, user, activeSection]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Chat Pengaduan" || !selectedComplaintId) { setChatMessages([]); return; }
+    let cancelled = false;
+    setChatLoading(true);
+    getDocs(collection(db, "chatRooms", selectedComplaintId, "messages")).then((snapshot) => {
+      const rows = snapshot.docs.map((item) => {
+        const data = item.data() as Record<string, unknown>;
+        const rawTime = data.timestamp ?? data.createdAt;
+        const createdAt = typeof rawTime === "number"
+          ? new Date(rawTime).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+          : rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function"
+            ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+            : "";
+        const senderType = String(data.senderType ?? data.sender ?? data.senderRole ?? "STAFF");
+        return {
+          id: item.id,
+          text: String(data.message ?? data.text ?? data.pesan ?? ""),
+          sender: /ADMIN/i.test(senderType) ? "Admin" : "Karyawan",
+          senderName: String(data.senderName ?? data.namaPengirim ?? (/ADMIN/i.test(senderType) ? "Admin" : "Karyawan")),
+          createdAt,
+        };
+      }).sort((a, b) => a.id.localeCompare(b.id));
+      if (!cancelled) setChatMessages(rows);
+    }).catch(() => {
+      if (!cancelled) setError("Riwayat chat belum bisa dibaca. Pastikan Firestore Security Rules mengizinkan akses ke chatRooms/{uid}/messages.");
+    }).finally(() => { if (!cancelled) setChatLoading(false); });
+    return () => { cancelled = true; };
+  }, [access, user, activeSection, selectedComplaintId]);
+
+  const sendComplaintReply = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const text = chatReply.trim();
+    if (!text || !selectedComplaintId || !db || !user || chatSending) return;
+    setChatSending(true);
+    setError("");
+    try {
+      await addDoc(collection(db, "chatRooms", selectedComplaintId, "messages"), {
+        senderId: user.uid,
+        senderName: user.displayName || user.email || "Admin",
+        senderType: "ADMIN",
+        message: text,
+        timestamp: Date.now(),
+      });
+      await updateDoc(doc(db, "chatRooms", selectedComplaintId), {
+        lastMessage: text,
+        updatedAt: Date.now(),
+        lastReplyBy: user.uid,
+      });
+      setChatReply("");
+      const snap = await getDocs(collection(db, "chatRooms", selectedComplaintId, "messages"));
+      setChatMessages(snap.docs.map((item) => {
+        const data = item.data() as Record<string, unknown>;
+        const rawTime = data.timestamp ?? data.createdAt;
+        const createdAt = typeof rawTime === "number"
+          ? new Date(rawTime).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+          : rawTime && typeof rawTime === "object" && "toDate" in rawTime && typeof (rawTime as {toDate?: unknown}).toDate === "function"
+            ? (rawTime as {toDate: () => Date}).toDate().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+            : "";
+        const senderType = String(data.senderType ?? data.sender ?? data.senderRole ?? "STAFF");
+        return {
+          id: item.id,
+          text: String(data.message ?? data.text ?? data.pesan ?? ""),
+          sender: /ADMIN/i.test(senderType) ? "Admin" : "Karyawan",
+          senderName: String(data.senderName ?? data.namaPengirim ?? (/ADMIN/i.test(senderType) ? "Admin" : "Karyawan")),
+          createdAt,
+        };
+      }).sort((a, b) => a.id.localeCompare(b.id)));
+      setComplaints((old) => old.map((item) => item.id === selectedComplaintId ? { ...item, message: text, status: "Dibalas", updatedAt: "Baru saja" } : item));
+    } catch {
+      setError("Balasan belum tersimpan. Periksa Firestore Security Rules untuk koleksi chatRooms dan subkoleksi messages.");
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const profileRefs = [
+    user?.uid,
+    user?.email,
+    ...["employeeId", "userId", "uid", "authUid", "firebaseUid", "email", "employeeEmail", "karyawanId", "idKaryawan"].map((key) => accessProfile[key]).filter((value): value is string => typeof value === "string"),
+  ].filter((value): value is string => Boolean(value)).map((value) => value.trim().toLowerCase());
+
+  const managerEmployee = employees.find((employee) =>
+    profileRefs.includes(employee.id.toLowerCase()) ||
+    profileRefs.includes(employee.uid.toLowerCase()) ||
+    (employee.email && profileRefs.includes(employee.email))
+  );
+  const managerIdentityFound = role !== "Manager" || Boolean(managerEmployee);
+
+
+
+  const visibleEmployees = role !== "Manager"
+    ? employees
+    : (() => {
+        if (!managerEmployee) return [];
+        const included = new Set<string>([managerEmployee.id]);
+        const parentTokens = (employee: EmployeeRecord) => [
+          employee.id, employee.uid, employee.email, employee.name,
+        ].filter(Boolean).map((value) => value.toLowerCase());
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const employee of employees) {
+            if (included.has(employee.id)) continue;
+            const parentMatches = employee.managerRefs.some((ref) =>
+              Array.from(included).some((includedId) => {
+                const parent = employees.find((candidate) => candidate.id === includedId);
+                return parent ? parentTokens(parent).includes(ref) : false;
+              })
+            );
+            if (parentMatches) {
+              included.add(employee.id);
+              changed = true;
+            }
+          }
+        }
+        return employees.filter((employee) => included.has(employee.id) && employee.id !== managerEmployee.id);
+      })();
+
+  const normalizedPosition = (employee: EmployeeRecord) =>
+    `${employee.position} ${employee.role}`.toLowerCase();
+  const employeeTokens = (employee: EmployeeRecord) =>
+    [employee.id, employee.uid, employee.email, employee.name].filter(Boolean).map((value) => value.toLowerCase());
+  const directManagerOf = (employee: EmployeeRecord) =>
+    employees.find((candidate) => candidate.id !== employee.id &&
+      employee.managerRefs.some((ref) => employeeTokens(candidate).includes(ref)));
+  const supervisorOf = (employee: EmployeeRecord) => {
+    let parent = directManagerOf(employee);
+    const visited = new Set<string>();
+    while (parent && !visited.has(parent.id)) {
+      if (normalizedPosition(parent).includes("supervisor")) return parent;
+      visited.add(parent.id);
+      parent = directManagerOf(parent);
+    }
+    return normalizedPosition(employee).includes("supervisor") ? employee : undefined;
+  };
+  const organizationEmployees = role === "Manager" && managerEmployee
+    ? employees.filter((employee) => employee.id === managerEmployee.id || visibleEmployees.some((child) => child.id === employee.id))
+    : visibleEmployees;
+  const organizationDepartments = Array.from(new Set(organizationEmployees.map((employee) => employee.department || "Belum ditentukan"))).sort((a, b) => a.localeCompare(b, "id"));
+  const organizationSupervisors = Array.from(new Map(organizationEmployees.map((employee) => supervisorOf(employee)).filter((employee): employee is EmployeeRecord => Boolean(employee)).map((employee) => [employee.id, employee])).values()).sort((a, b) => a.name.localeCompare(b.name, "id"));
+
+  function openEmployeeForm(employee?: EmployeeRecord) {
+    setEditingEmployeeId(employee?.id ?? null);
+    setEmployeeForm({ name: employee?.name === "Tanpa nama" ? "" : employee?.name ?? "", email: employee?.email ?? "", password: "", department: employee?.department ?? "", position: employee?.position ?? "", role: ["admin", "owner", "hrd", "manager"].includes((employee?.role ?? "").trim().toLowerCase()) ? "Admin" : "Karyawan", status: employee?.status ?? "Aktif" });
+    setEmployeeFormOpen(true);
+    setError("");
+  }
+
+  async function saveEmployee(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!db || !user || (role !== "Admin" && role !== "Owner")) { setError("Hanya Admin atau Owner yang boleh mengelola data karyawan."); return; }
+    const name = employeeForm.name.trim();
+    const employeeEmail = employeeForm.email.trim().toLowerCase();
+    if (!name) { setError("Nama karyawan wajib diisi."); return; }
+    if (!employeeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employeeEmail)) { setError("Email valid wajib diisi untuk akun login karyawan."); return; }
+    if (!editingEmployeeId && employeeForm.password.length < 6) { setError("Password awal minimal 6 karakter."); return; }
+    setEmployeeSaving(true);
+    setError("");
+    let createdAuthUser: import("firebase/auth").User | null = null;
+    let secondaryAuth: ReturnType<typeof getAuth> | null = null;
+    try {
+      const commonPayload = {
+        nama: name, name, email: employeeEmail,
+        departemen: employeeForm.department.trim(),
+        jabatan: employeeForm.position.trim(),
+        role: employeeForm.role,
+        status: employeeForm.status,
+        updatedAt: serverTimestamp(),
+      };
+      if (editingEmployeeId) {
+        await updateDoc(doc(db, "users", editingEmployeeId), commonPayload);
+        if (employeeForm.role === "Admin") {
+          await setDoc(doc(db, "controlAdmins", editingEmployeeId), { uid: editingEmployeeId, name, email: employeeEmail, role: "Admin", active: employeeForm.status === "Aktif", updatedAt: serverTimestamp() }, { merge: true });
+        } else {
+          const adminRef = doc(db, "controlAdmins", editingEmployeeId);
+          const adminSnap = await getDoc(adminRef);
+          if (adminSnap.exists()) await updateDoc(adminRef, { role: "Karyawan", active: false, updatedAt: serverTimestamp() });
+        }
+      } else {
+        // Use a named secondary Firebase app so creating a staff account won't sign out the admin.
+        const secondaryAppName = "absen-control-employee-creator";
+        const secondaryApp = getApps().find((app) => app.name === secondaryAppName)
+          ?? initializeApp((getApps().find((app) => app.name === "absen-control-web-auth") ?? getApp()).options, secondaryAppName);
+        secondaryAuth = getAuth(secondaryApp);
+        const credential = await createUserWithEmailAndPassword(secondaryAuth, employeeEmail, employeeForm.password);
+        createdAuthUser = credential.user;
+        await setDoc(doc(db, "users", credential.user.uid), {
+          ...commonPayload, uid: credential.user.uid, role: employeeForm.role, createdAt: serverTimestamp(),
+        });
+        if (employeeForm.role === "Admin") {
+          await setDoc(doc(db, "controlAdmins", credential.user.uid), { uid: credential.user.uid, name, email: employeeEmail, role: "Admin", active: employeeForm.status === "Aktif", createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        }
+        await signOut(secondaryAuth);
+      }
+      const id = editingEmployeeId ?? createdAuthUser?.uid ?? "";
+      setEmployeeFormOpen(false);
+      setEmployeeForm({ name: "", email: "", password: "", department: "", position: "", role: "Karyawan", status: "Aktif" });
+      setEmployees((current) => {
+        const row: EmployeeRecord = {
+          id, uid: id, name, email: employeeEmail,
+          department: employeeForm.department.trim(), position: employeeForm.position.trim(),
+          role: employeeForm.role,
+          status: employeeForm.status, managerRefs: [], managerName: "",
+        };
+        return (editingEmployeeId ? current.map((item) => item.id === editingEmployeeId ? { ...item, ...row } : item) : [...current, row]).sort((a,b) => a.name.localeCompare(b.name, "id"));
+      });
+      setError(editingEmployeeId ? "Data karyawan berhasil diperbarui." : "Akun login dan data karyawan berhasil dibuat.");
+      setActiveSection("Dashboard");
+      window.setTimeout(() => setActiveSection("Data Karyawan"), 0);
+    } catch (cause: unknown) {
+      // Best-effort rollback: don't leave Firestore profile/admin documents behind
+      // if provisioning the new Firebase Authentication account fails partway through.
+      if (createdAuthUser) {
+        try { await deleteDoc(doc(db, "controlAdmins", createdAuthUser.uid)); } catch { /* preserve original failure */ }
+        try { await deleteDoc(doc(db, "users", createdAuthUser.uid)); } catch { /* preserve original failure */ }
+        try { await deleteUser(createdAuthUser); } catch { /* preserve original failure */ }
+      }
+      const code = typeof cause === "object" && cause !== null && "code" in cause ? String((cause as {code?: unknown}).code ?? "") : "";
+      if (code === "auth/email-already-in-use") setError("Email ini sudah terdaftar di Firebase Authentication. Gunakan email lain atau hubungkan akun yang sudah ada.");
+      else if (code === "auth/weak-password") setError("Password terlalu lemah. Gunakan minimal 6 karakter.");
+      else if (code === "auth/operation-not-allowed") setError("Login Email/Password belum diaktifkan di Firebase Authentication.");
+      else setError("Gagal membuat akun atau menyimpan data karyawan. Periksa koneksi, Firebase Authentication, dan Firestore Rules untuk koleksi users.");
+    } finally {
+      if (secondaryAuth) await signOut(secondaryAuth).catch(() => undefined);
+      setEmployeeSaving(false);
+    }
+  }
+
+  async function removeEmployee(employee: EmployeeRecord) {
+    if (!db || (role !== "Admin" && role !== "Owner")) { setError("Hanya Admin atau Owner yang boleh menghapus data karyawan."); return; }
+    if (!window.confirm("Hapus data karyawan " + employee.name + "? Tindakan ini tidak dapat dibatalkan.")) return;
+    setError("");
+    try {
+      if (!auth?.currentUser) throw new Error("Sesi login tidak ditemukan.");
+      const functions = getFunctions(auth.app, "asia-southeast1");
+      const deleteEmployeeAccount = httpsCallable(functions, "deleteEmployeeAccount");
+      await deleteEmployeeAccount({ uid: employee.uid || employee.id });
+      setEmployees((current) => current.filter((item) => item.id !== employee.id));
+      setError("Akun Firebase Authentication, profil, dan akses Admin berhasil dihapus. Riwayat absensi/pengajuan/pengaduan tetap dipertahankan.");
+    } catch (cause: unknown) {
+      const code = typeof cause === "object" && cause !== null && "code" in cause ? String((cause as {code?: unknown}).code ?? "") : "";
+      setError(code === "functions/not-found"
+        ? "Fungsi penghapusan belum di-deploy ke Firebase. Deploy Cloud Functions terlebih dahulu."
+        : "Penghapusan akun gagal. Pastikan Cloud Function sudah di-deploy dan akses Admin serta Firebase Rules/konfigurasi sudah benar.");
+    }
+  }
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!auth) return;
+    setBusy(true);
+    setError("Menghubungkan ke Firebase Authentication…");
+    try {
+      await Promise.race([
+        signInWithEmailAndPassword(auth, email.trim(), password),
+        new Promise<never>((_, reject) =>
+          window.setTimeout(() => reject(new Error("LOGIN_TIMEOUT")), 15000),
+        ),
+      ]);
+    } catch (cause: unknown) {
+      const code =
+        typeof cause === "object" && cause !== null && "code" in cause
+          ? String((cause as { code?: unknown }).code ?? "")
+          : "";
+
+      if (code === "auth/invalid-email") {
+        setError("Format email tidak valid. Periksa kembali alamat email kamu.");
+      } else if (
+        code === "auth/invalid-credential" ||
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found"
+      ) {
+        setError("Email atau kata sandi salah. Periksa kembali lalu coba lagi.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.");
+      } else if (code === "auth/network-request-failed") {
+        setError("Koneksi internet bermasalah. Periksa koneksi lalu coba lagi.");
+      } else if (code === "auth/user-disabled") {
+        setError("Akun ini dinonaktifkan. Hubungi Admin.");
+      } else if (code === "auth/operation-not-allowed") {
+        setError("Metode login Email/Kata Sandi belum diaktifkan di Firebase Authentication.");
+      } else if (code === "auth/invalid-api-key") {
+        setError("Konfigurasi Firebase API key tidak valid. Periksa konfigurasi aplikasi Web Firebase.");
+      } else if (code === "auth/unauthorized-domain") {
+        setError("Domain web ini belum diizinkan di Firebase Authentication. Tambahkan dink2v.github.io ke Authorized domains.");
+      } else if (cause instanceof Error && cause.message === "LOGIN_TIMEOUT") {
+        setError("Firebase tidak merespons setelah 15 detik. Periksa koneksi internet dan konfigurasi Authentication, lalu coba lagi.");
+      } else {
+        setError("Login belum berhasil. Periksa koneksi dan konfigurasi Firebase Authentication, lalu coba lagi.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLogout() {
+    if (auth) await signOut(auth);
+    setRole(null);
+    setAccess("signed-out");
+  }
+
+  async function decidePengajuan(item: RequestRecord, decision: "disetujui" | "ditolak") {
+    if (!auth?.currentUser || !db) {
+      setError("Sesi login tidak ditemukan. Silakan login kembali.");
+      return;
+    }
+    const currentUid = auth.currentUser.uid;
+    const chain = Array.isArray(item.raw.approvalChain)
+      ? item.raw.approvalChain.filter((value): value is string => typeof value === "string")
+      : [];
+    const currentApproverUid = typeof item.raw.currentApproverUid === "string" ? item.raw.currentApproverUid : "";
+    const isWaiting = String(item.raw.status ?? item.status).trim().toLowerCase() === "menunggu";
+    if (!isWaiting || item.raw.approvalLocked === true || currentApproverUid !== currentUid || !chain.includes(currentUid)) {
+      setError("Pengajuan ini bukan giliran persetujuan akun Anda, atau statusnya sudah berubah. Muat ulang data.");
+      return;
+    }
+    const verb = decision === "disetujui" ? "menyetujui" : "menolak";
+    if (!window.confirm(`Yakin ${verb} pengajuan ${item.type} dari ${item.employee}?`)) return;
+    setRequestActionId(item.id);
+    setError("");
+    try {
+      const callable = httpsCallable(getFunctions(auth.app, "asia-southeast1"), "decidePengajuanApproval");
+      await callable({ documentId: item.id, decision });
+      setRequestReloadKey((key) => key + 1);
+    } catch (cause: unknown) {
+      const code = typeof cause === "object" && cause !== null && "code" in cause ? String((cause as { code?: unknown }).code ?? "") : "";
+      const message = cause instanceof Error ? cause.message : "";
+      setError(code === "functions/permission-denied"
+        ? "Aksi ditolak: hanya approver aktif pada tahap ini yang boleh memproses pengajuan."
+        : code === "functions/failed-precondition"
+          ? (message || "Status atau tahap approval sudah berubah. Muat ulang data.")
+          : "Aksi gagal disimpan. Pastikan Cloud Function decidePengajuanApproval sudah di-deploy di region asia-southeast1 dan periksa koneksi Firebase.");
+    } finally {
+      setRequestActionId(null);
+    }
+  }
+
+  useEffect(() => {
+    if (access !== "allowed" || !user || !db || activeSection !== "Pengaturan" || attendanceSettingsLoaded) return;
+    let cancelled = false;
+    (async () => {
+      setAttendanceSettingsLoading(true);
+      setAttendanceSettingsError("");
+      try {
+        const snapshot = await getDoc(doc(db, "systemSettings", "attendance"));
+        if (cancelled) return;
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          setAttendanceSettings((current) => ({
+            enabled: typeof data.enabled === "boolean" ? data.enabled : current.enabled,
+            checkInStart: typeof data.checkInStart === "string" ? data.checkInStart : current.checkInStart,
+            checkInEnd: typeof data.checkInEnd === "string" ? data.checkInEnd : current.checkInEnd,
+            checkOutStart: typeof data.checkOutStart === "string" ? data.checkOutStart : current.checkOutStart,
+            checkOutEnd: typeof data.checkOutEnd === "string" ? data.checkOutEnd : current.checkOutEnd,
+            lateToleranceMinutes: Number.isFinite(data.lateToleranceMinutes) ? Math.min(180, Math.max(0, Number(data.lateToleranceMinutes))) : current.lateToleranceMinutes,
+            geofenceRadiusMeters: Number.isFinite(data.geofenceRadiusMeters) ? Math.min(5000, Math.max(10, Number(data.geofenceRadiusMeters))) : current.geofenceRadiusMeters,
+            requireLocation: typeof data.requireLocation === "boolean" ? data.requireLocation : current.requireLocation,
+          }));
+        }
+        setAttendanceSettingsLoaded(true);
+      } catch {
+        if (!cancelled) setAttendanceSettingsError("Pengaturan tidak dapat dibaca. Periksa Firestore Security Rules untuk systemSettings/attendance.");
+      } finally {
+        if (!cancelled) setAttendanceSettingsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [access, user, activeSection, attendanceSettingsLoaded]);
+
+  async function saveAttendanceSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!db || !user || (role !== "Admin" && role !== "Owner")) {
+      setAttendanceSettingsError("Hanya Admin atau Owner yang boleh menyimpan pengaturan absensi.");
+      return;
+    }
+    if (attendanceSettings.checkInStart >= attendanceSettings.checkInEnd || attendanceSettings.checkOutStart >= attendanceSettings.checkOutEnd) {
+      setAttendanceSettingsError("Jam akhir harus lebih besar dari jam mulai pada setiap rentang waktu.");
+      return;
+    }
+    if (attendanceSettings.lateToleranceMinutes < 0 || attendanceSettings.lateToleranceMinutes > 180 || attendanceSettings.geofenceRadiusMeters < 10 || attendanceSettings.geofenceRadiusMeters > 5000) {
+      setAttendanceSettingsError("Toleransi harus 0–180 menit dan radius GPS 10–5.000 meter.");
+      return;
+    }
+    setAttendanceSettingsSaving(true);
+    setAttendanceSettingsError("");
+    setSettingsNotice("");
+    try {
+      await setDoc(doc(db, "systemSettings", "attendance"), {
+        ...attendanceSettings, schemaVersion: 1, updatedAt: serverTimestamp(), updatedBy: user.uid,
+      }, { merge: true });
+      setSettingsNotice("Pengaturan absensi berhasil disimpan ke Firebase Firestore.");
+      setAttendanceSettingsLoaded(true);
+    } catch {
+      setAttendanceSettingsError("Gagal menyimpan. Firestore Security Rules harus membatasi tulis ke Admin/Owner aktif; jangan membuka akses untuk semua pengguna.");
+    } finally {
+      setAttendanceSettingsSaving(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    const accountEmail = user?.email?.trim();
+    if (!auth || !accountEmail) { setSettingsNotice("Email akun tidak tersedia. Hubungi pengelola sistem."); return; }
+    setSettingsBusy(true); setSettingsNotice("");
+    try {
+      await sendPasswordResetEmail(auth, accountEmail);
+      setSettingsNotice(`Tautan reset kata sandi telah diminta untuk ${accountEmail}. Periksa kotak masuk dan folder spam.`);
+    } catch (cause) {
+      const code = cause && typeof cause === "object" && "code" in cause ? String(cause.code) : "";
+      setSettingsNotice(code === "auth/too-many-requests" ? "Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi." : "Permintaan reset kata sandi gagal. Periksa koneksi dan pengaturan Firebase Authentication.");
+    } finally { setSettingsBusy(false); }
+  }
+
+  if (access === "checking") {
+    return <main className="center-screen"><div className="loader" /><p>Memeriksa akses ABSEN CONTROL…</p></main>;
+  }
+
+  if (access === "setup") {
+    return (
+      <main className="center-screen">
+        <section className="setup-card">
+          <div className="brand-mark">AC</div>
+          <p className="eyebrow">PERSIAPAN WEB</p>
+          <h1>Hubungkan Firebase</h1>
+          <p className="muted">Fondasi web sudah disiapkan. Salin <code>.env.example</code> menjadi <code>.env.local</code>, lalu isi konfigurasi aplikasi Web dari Firebase Console.</p>
+          <p className="small-note">Gunakan konfigurasi aplikasi Web Firebase untuk project <strong>absensi-karyawan-2b712</strong>. Jangan gunakan App ID Android sebagai App ID web.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (access !== "allowed" || !user || !role) {
+    return (
+      <main className="login-layout">
+        <section className="login-brand-panel">
+          <div className="brand-lockup"><div className="brand-mark">AC</div><span>ABSEN<span className="brand-light">CONTROL</span></span></div>
+          <div className="brand-copy">
+            <p className="eyebrow">ATTENDANCE MANAGEMENT</p>
+            <h1>Kontrol operasional,<br /><span>dalam satu tempat.</span></h1>
+            <p>Panel internal untuk memantau absensi, mengelola karyawan, dan menjaga alur kerja tetap teratur.</p>
+          </div>
+          <div className="brand-footer">INTERNAL MANAGEMENT SYSTEM · v0.1</div>
+        </section>
+        <section className="login-panel">
+          <form className="login-form" onSubmit={handleLogin}>
+            <div className="mobile-brand"><div className="brand-mark">AC</div><strong>ABSEN CONTROL</strong></div>
+            <p className="eyebrow">SELAMAT DATANG KEMBALI</p>
+            <h2>Masuk ke akun</h2>
+            <p className="muted">Gunakan akun resmi pengelola ABSEN CONTROL.</p>
+            {error && <div className="alert" role="alert">{error}</div>}
+            {access === "denied" && !error && <div className="alert" role="alert">Akun ini belum memiliki role aktif di ABSEN CONTROL. Hubungi Admin.</div>}
+            <label htmlFor="email">Email</label>
+            <input id="email" type="email" autoComplete="username" placeholder="nama@perusahaan.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <label htmlFor="password">Kata sandi</label>
+            <input id="password" type="password" autoComplete="current-password" placeholder="Masukkan kata sandi" value={password} onChange={(event) => setPassword(event.target.value)} required />
+            <button className="primary-button" type="submit" disabled={busy}>{busy ? "Memproses…" : "Masuk ke dashboard"} <span aria-hidden="true">→</span></button>
+            <p className="form-footnote"><span className="secure-dot" /> Akses khusus HRD, Manager, Owner, dan Admin</p>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="dashboard-layout">
+      <aside className="sidebar">
+        <div className="brand-lockup"><div className="brand-mark">AC</div><span>ABSEN<span className="brand-light">CONTROL</span></span></div>
+        <div className="sidebar-workspace"><span className="workspace-label">WORKSPACE</span><span className="workspace-name">Manajemen Kehadiran</span></div>
+        <p className="nav-caption">MENU UTAMA</p>
+        <nav className="nav-list" aria-label="Menu utama">
+          {menuItems.map((item) => (
+            <button className={activeSection === item.title ? "nav-item active" : "nav-item"} key={item.title} type="button" aria-current={activeSection === item.title ? "page" : undefined} onClick={() => { setActiveSection(item.title); setError(""); }}>
+              <span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.title}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom"><div className="online-indicator" /><span>Firebase</span><span className="connection-label">TERHUBUNG</span><span className="version">v0.1</span></div>
+      </aside>
+      <section className="dashboard-main">
+        <header className="topbar">
+          <div className="page-heading">
+            <p className="eyebrow">ABSEN CONTROL <span>/</span> RUANG KERJA</p>
+            <h1>{activeSection}</h1>
+            <p className="page-description">{menuItems.find((item) => item.title === activeSection)?.description || "Pengelolaan kehadiran dan operasional"}</p>
+          </div>
+          <div className="account-area">
+            <div className="avatar">{(user.email?.[0] || "A").toUpperCase()}</div>
+            <div className="account-copy"><strong>{user.displayName || user.email}</strong><span>{role} · Akun aktif</span></div>
+            <button className="logout-button" onClick={handleLogout} type="button">Keluar</button>
+          </div>
+        </header>
+        {error && <div className="inline-notice" role="status">{error}<button type="button" onClick={() => setError("")} aria-label="Tutup pesan">×</button></div>}
+        {activeSection === "Dashboard" && <div className="welcome-row">
+          <div><span className="welcome-kicker">RINGKASAN HARI INI</span><h2>Selamat datang kembali</h2><p>Pantau kehadiran dan tindak lanjut operasional dari satu tempat.</p></div>
+          <div className="date-chip"><span className="date-chip-label">HARI INI</span><strong>{new Intl.DateTimeFormat("id-ID", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }).format(new Date())}</strong></div>
+        </div>}
+        {activeSection === "Chat Pengaduan" ? <section className="content-card employees-panel complaints-panel">
+          <div className="section-heading"><div><h3>Chat Pengaduan</h3><p>Inbox pengaduan karyawan dari koleksi <code>pengaduan</code> di Firestore.</p></div><span className="module-count">{complaints.length} percakapan</span></div>
+          <div className="complaints-workspace"><aside className="complaint-inbox"><div className="complaint-inbox-heading"><strong>Daftar percakapan</strong><button type="button" className="logout-button" onClick={() => setActiveSection("Dashboard")}>Kembali</button></div>{complaintsLoading ? <p className="employee-state">Memuat pengaduan…</p> : complaints.length === 0 ? <p className="employee-state">Belum ada pengaduan. Dokumen akan tampil setelah koleksi pengaduan dibuat dan aplikasi karyawan dihubungkan.</p> : complaints.map((item) => <button type="button" key={item.id} className={`complaint-thread ${selectedComplaintId === item.id ? "selected" : ""}`} onClick={() => setSelectedComplaintId(item.id)}><span className="complaint-avatar">{item.employee.slice(0,1).toUpperCase()}</span><span className="complaint-thread-copy"><strong>{item.employee}</strong><small>{item.subject}</small><span>{item.message}</span></span><span className="complaint-status">{item.status}</span></button>)}</aside>
+          <div className="complaint-chat">{selectedComplaintId && complaints.find((item) => item.id === selectedComplaintId) ? <><div className="complaint-chat-header"><div><h4>{complaints.find((item) => item.id === selectedComplaintId)?.subject}</h4><p>{complaints.find((item) => item.id === selectedComplaintId)?.employee} · {complaints.find((item) => item.id === selectedComplaintId)?.email || "Email tidak tersedia"}</p></div><span className="complaint-status">{complaints.find((item) => item.id === selectedComplaintId)?.status}</span></div><div className="complaint-messages">{chatLoading ? <p className="employee-state">Memuat riwayat pesan…</p> : chatMessages.length === 0 ? <div className="complaint-empty"><span>✉</span><strong>Belum ada riwayat chat</strong><p>Balasan akan tersimpan ke subkoleksi <code>messages</code>.</p></div> : chatMessages.map((message) => <article key={message.id} className={`chat-bubble ${/admin/i.test(message.sender) ? "admin-message" : ""}`}><div><strong>{message.senderName}</strong><small>{message.createdAt}</small></div><p>{message.text}</p></article>)}</div><form className="complaint-reply-form" onSubmit={sendComplaintReply}><textarea aria-label="Tulis balasan" placeholder="Tulis balasan untuk karyawan…" value={chatReply} onChange={(event) => setChatReply(event.target.value)} rows={2} required /><button className="primary-button" type="submit" disabled={chatSending || !chatReply.trim()}>{chatSending ? "Mengirim…" : "Kirim balasan"}</button></form></> : <div className="complaint-empty"><span>✉</span><strong>Belum ada percakapan</strong><p>Pengaduan akan tampil setelah dokumen dibuat di koleksi <code>pengaduan</code>.</p></div>}</div></div>
+          <p className="small-note">Struktur web: dokumen <code>pengaduan/ID</code> dan subkoleksi <code>messages</code>. Firestore Security Rules harus mengizinkan Admin membaca/menulis. Aplikasi karyawan masih perlu diintegrasikan agar bisa mengirim pengaduan dan membaca balasan.</p>
+        </section> : activeSection === "Struktur Organisasi" ? <section className="content-card employees-panel organization-panel">
+          <div className="section-heading"><div><h3>Struktur Organisasi</h3><p>Hubungan atasan, tim, dan bawahan dari data koleksi <code>users</code>.</p></div><span className="module-count">{organizationEmployees.length} orang</span></div>
+          <div className="organization-summary">
+            <article><span>Divisi</span><strong>{organizationDepartments.length}</strong></article>
+            <article><span>Supervisor terhubung</span><strong>{organizationSupervisors.length}</strong></article>
+            <article><span>Belum terhubung ke atasan</span><strong>{organizationEmployees.filter((employee) => !directManagerOf(employee) && !["owner", "admin"].includes(normalizedPosition(employee).trim())).length}</strong></article>
+          </div>
+          {employeesLoading ? <p className="employee-state">Memuat struktur organisasi dari Firestore…</p> : organizationEmployees.length === 0 ? <p className="employee-state">{role === "Manager" && !managerIdentityFound ? "Akun Manager belum bisa dicocokkan dengan dokumen users. Cocokkan UID atau email akun Manager dengan data karyawan terlebih dahulu." : "Belum ada data karyawan yang bisa ditampilkan."}</p> : <div className="organization-groups">
+            {organizationDepartments.map((department) => {
+              const departmentEmployees = organizationEmployees.filter((employee) => (employee.department || "Belum ditentukan") === department);
+              const groupMap = new Map<string, { supervisor?: EmployeeRecord; members: EmployeeRecord[] }>();
+              departmentEmployees.forEach((employee) => {
+                const supervisor = supervisorOf(employee);
+                const key = supervisor?.id || "__unassigned__";
+                const existing = groupMap.get(key);
+                if (existing) existing.members.push(employee);
+                else groupMap.set(key, { supervisor, members: [employee] });
+              });
+              return <section className="organization-department" key={department}>
+                <div className="organization-department-title"><span className="organization-icon">▦</span><div><h4>{department}</h4><p>{departmentEmployees.length} anggota</p></div></div>
+                <div className="organization-team-grid">{Array.from(groupMap.entries()).map(([key, group]) => <article className="organization-team" key={key}>
+                  <div className="organization-supervisor"><span className="organization-avatar">{(group.supervisor?.name || "?").slice(0, 1).toUpperCase()}</span><div><strong>{group.supervisor?.name || "Supervisor belum ditetapkan"}</strong><small>{group.supervisor ? [group.supervisor.position || "Supervisor", group.supervisor.department].filter(Boolean).join(" · ") : "Belum ada hubungan atasan yang cocok"}</small></div><span className="module-count">{group.members.filter((member) => member.id !== group.supervisor?.id).length} bawahan</span></div>
+                  <div className="organization-members">{group.members.filter((member) => member.id !== group.supervisor?.id).map((member) => <div className="organization-member" key={member.id}><span className="organization-avatar small">{member.name.slice(0, 1).toUpperCase()}</span><div><strong>{member.name}</strong><small>{[member.position || member.role || "Karyawan", directManagerOf(member) ? `Atasan: ${directManagerOf(member)?.name}` : "Atasan belum ditetapkan"].join(" · ")}</small></div><span className="organization-member-status">{directManagerOf(member)?.name ? "Terhubung" : "Perlu atasan"}</span></div>)}
+                    {group.members.length === 1 && group.supervisor && <p className="organization-empty">Belum ada anggota bawahan yang terhubung.</p>}
+                  </div>
+                </article>)}</div>
+              </section>;
+            })}
+          </div>}
+          <p className="small-note">Struktur ini mencocokkan nilai <code>atasan</code> dengan nama, email, UID, atau ID dokumen pengguna. Untuk menghindari nama yang sama, lebih aman mengisi <code>atasanUid</code> atau <code>supervisorUid</code> dengan UID atasan yang benar. Nilai penanda seperti <code>kosong</code> tidak dianggap sebagai atasan. Hak akses tetap mengikuti role akun.</p>
+        </section> : activeSection === "Data Karyawan" ? <section className="content-card employees-panel">
+          <div className="section-heading"><div><h3>Data Karyawan</h3><p>Data langsung dari koleksi <code>users</code> di Firestore.</p></div><div className="employee-heading-actions"><span className="module-count">{employees.length} karyawan</span><button type="button" className="logout-button" onClick={() => setActiveSection("Struktur Organisasi")}>Lihat Struktur Organisasi</button>{(role === "Admin" || role === "Owner") && <button type="button" className="primary-button employee-add-button" onClick={() => openEmployeeForm()} aria-label="Tambah karyawan baru">+ Tambah karyawan</button>}</div></div>
+          {employeeFormOpen && <form className="employee-form" onSubmit={saveEmployee}>
+            <div className="employee-form-heading"><div><h4>{editingEmployeeId ? "Edit karyawan" : "Tambah karyawan"}</h4><p>Perubahan disimpan ke koleksi users di Firestore.</p></div><button type="button" className="logout-button" onClick={() => setEmployeeFormOpen(false)} disabled={employeeSaving}>Batal</button></div>
+            <div className="employee-form-grid">
+              <label>Nama lengkap *<input required value={employeeForm.name} onChange={(event) => setEmployeeForm((form) => ({...form, name:event.target.value}))} placeholder="Nama karyawan" /></label>
+              <label>Email login *<input type="email" required value={employeeForm.email} readOnly={Boolean(editingEmployeeId)} onChange={(event) => setEmployeeForm((form) => ({...form, email:event.target.value}))} placeholder="nama@perusahaan.com" /></label>
+              {!editingEmployeeId && <label>Password awal *<input type="password" required minLength={6} autoComplete="new-password" value={employeeForm.password} onChange={(event) => setEmployeeForm((form) => ({...form, password:event.target.value}))} placeholder="Minimal 6 karakter" /></label>}
+              <label>Divisi<input value={employeeForm.department} onChange={(event) => setEmployeeForm((form) => ({...form, department:event.target.value}))} placeholder="Contoh: Operasional" /></label>
+              <label>Jabatan<input value={employeeForm.position} onChange={(event) => setEmployeeForm((form) => ({...form, position:event.target.value}))} placeholder="Contoh: Staff" /></label>
+              <label>Role akun<select value={employeeForm.role} onChange={(event) => setEmployeeForm((form) => ({...form, role:event.target.value}))}><option value="Karyawan">Karyawan</option><option value="Admin">Admin</option></select></label>
+              <label>Status<select value={employeeForm.status} onChange={(event) => setEmployeeForm((form) => ({...form, status:event.target.value}))}><option>Aktif</option><option>Nonaktif</option></select></label>
+            </div>
+            <p className="small-note">Akun memakai UID yang sama dengan Firebase Authentication dan dokumen users. Role Admin disinkronkan ke controlAdmins; penyimpanan memerlukan Firestore Rules yang mengizinkan Admin/Owner tepercaya mengelola dokumen tersebut. Password tidak disimpan di Firestore. Email akun yang sudah ada tidak diubah dari formulir ini.</p>
+            <div className="employee-form-actions"><button className="primary-button" type="submit" disabled={employeeSaving}>{employeeSaving ? "Menyimpan…" : editingEmployeeId ? "Simpan perubahan" : "Simpan karyawan"}</button></div>
+          </form>}
+          <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
+          {employeesLoading ? <p className="employee-state">Memuat data karyawan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Nama</th><th>Email</th><th>Jabatan / Divisi</th><th>Role</th><th>Status</th>{(role === "Admin" || role === "Owner") && <th>Aksi</th>}</tr></thead><tbody>
+            {visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{[employee.position, employee.department].filter(Boolean).join(" · ") || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td>{(role === "Admin" || role === "Owner") && <td><div className="employee-row-actions"><button type="button" className="logout-button" onClick={() => openEmployeeForm(employee)}>Edit</button><button type="button" className="employee-delete-button" onClick={() => void removeEmployee(employee)}>Hapus</button></div></td>}</tr>)}
+          </tbody></table>
+          {visibleEmployees.length === 0 && !employeesLoading && <p className="employee-state">{role === "Manager" && !managerIdentityFound ? "Akun Manager belum bisa dicocokkan dengan data karyawan. Hubungkan email/UID akun ke dokumen users agar hierarki tim dapat ditampilkan." : "Belum ada karyawan dalam cakupan akses ini."}</p>}
+          {visibleEmployees.length > 0 && visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada karyawan yang cocok dengan pencarian.</p>}
+          </div>}
+          {role === "Manager" && <p className="small-note">Akses Manager dibatasi ke seluruh hierarki bawahan langsung dan tidak langsung. Hubungan tim dibaca dari field atasan/manager pada dokumen karyawan.</p>}
+          <p className="small-note">Fitur tambah, edit, dan hapus tersedia untuk Admin dan Owner. Penghapusan menghapus dokumen users saja, bukan akun Firebase Authentication atau riwayat absensi.</p>
+        </section> : activeSection === "Absensi" ? <section className="content-card employees-panel">
+          <div className="section-heading"><div><h3>Rekap Absensi</h3><p>Semua catatan absensi ditampilkan dalam satu daftar dari koleksi <code>attendance</code> di Firestore.</p></div><div className="employee-heading-actions"><span className="module-count">{attendanceRows.length} catatan</span><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Muat ulang"}</button></div></div>
+          <div className="employee-toolbar attendance-toolbar">
+            <input aria-label="Cari absensi" placeholder="Cari nama, status, atau ID…" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} />
+            <label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal absensi" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label>
+            <button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Reset filter</button>
+          </div>
+          {attendanceLoading ? <p className="employee-state">Memuat catatan absensi dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Kantor / Lokasi</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
+            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{formatAttendanceDate(item.date)}</td><td><strong>{item.name}</strong></td><td><strong>{item.office || "Kantor belum tercatat"}</strong><small>{[item.officeAddress, item.coordinates ? `GPS: ${item.coordinates}` : ""].filter(Boolean).join(" · ") || "Lokasi belum dikirim oleh aplikasi karyawan"}</small></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+          </tbody></table>
+          {attendanceRows.length === 0 && !attendanceLoading && <p className="employee-state">Belum ada catatan pada koleksi <code>attendance</code>.</p>}
+          {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
+          </div>}
+          <p className="small-note">Semua data absensi ditampilkan di sini. Gunakan filter tanggal atau pencarian bila ingin mempersempit daftar.</p>
+        </section> : activeSection === "Pengajuan" ? <section className="content-card employees-panel requests-panel">
+          <div className="section-heading"><div><h3>Semua Pengajuan</h3><p>Data dibaca langsung dari seluruh dokumen koleksi <code>pengajuan</code> di Firestore.</p></div><span className="module-count">{requestRows.length} pengajuan</span></div>
+          <div className="request-summary">
+            <article><span>Total data</span><strong>{requestRows.length}</strong></article>
+            <article><span>Menunggu</span><strong>{requestRows.filter((item) => /pending|menunggu|proses|review|diajukan/i.test(item.status)).length}</strong></article>
+            <article><span>Disetujui</span><strong>{requestRows.filter((item) => /setuju|disetujui|approved|diterima/i.test(item.status)).length}</strong></article>
+            <article><span>Ditolak</span><strong>{requestRows.filter((item) => /tolak|ditolak|rejected/i.test(item.status)).length}</strong></article>
+          </div>
+          <div className="employee-toolbar request-toolbar">
+            <input aria-label="Cari pengajuan" placeholder="Cari nama, jenis, alasan, email, ID…" value={requestSearch} onChange={(event) => setRequestSearch(event.target.value)} />
+            <select aria-label="Filter status pengajuan" value={requestStatus} onChange={(event) => setRequestStatus(event.target.value)}><option>Semua</option>{Array.from(new Set(requestRows.map((item) => item.status))).sort((a,b) => a.localeCompare(b,"id")).map((status) => <option key={status}>{status}</option>)}</select>
+            <button type="button" className="logout-button" onClick={() => { setRequestSearch(""); setRequestStatus("Semua"); }}>Reset filter</button>
+            <button type="button" className="primary-button request-refresh" onClick={() => setRequestReloadKey((key) => key + 1)} disabled={requestsLoading} title="Muat ulang data dari Firestore">{requestsLoading ? "Memuat…" : "Muat ulang"}</button>
+          </div>
+          {requestsLoading ? <p className="employee-state">Memuat semua pengajuan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table request-table"><thead><tr><th>Pemohon</th><th>Jenis</th><th>Tanggal pengajuan</th><th>Periode</th><th>Alasan / keterangan</th><th>Status</th><th>Riwayat persetujuan</th><th>Approver saat ini</th><th>ID dokumen</th></tr></thead><tbody>
+            {requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, item.currentApprover, JSON.stringify(item.approvals), JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td><strong>{item.employee}</strong>{item.email && <small>{item.email}</small>}</td><td>{item.type}</td><td>{item.submittedAt || "—"}</td><td>{item.startDate || item.endDate ? <>{item.startDate || "—"}{item.endDate ? ` s.d. ${item.endDate}` : ""}</> : "—"}</td><td className="request-reason">{item.reason || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><button type="button" className="request-approval-detail-button" onClick={() => setSelectedApprovalRequest(item)}>{item.approvals.length ? `Lihat ${item.approvals.length} detail` : "Lihat detail"}</button></td><td>{item.currentApprover || "—"}</td><td><small>{item.id}</small></td></tr>)}
+          </tbody></table>
+          {requestRows.length === 0 && <p className="employee-state">Koleksi <code>pengajuan</code> belum memiliki dokumen atau belum ada data yang berhasil dibaca.</p>}
+          {requestRows.length > 0 && requestRows.filter((item) => (requestStatus === "Semua" || item.status === requestStatus) && [item.id, item.employee, item.email, item.type, item.status, item.submittedAt, item.startDate, item.endDate, item.reason, JSON.stringify(item.raw)].some((value) => value.toLowerCase().includes(requestSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada pengajuan yang cocok dengan pencarian atau filter status.</p>}
+          </div>}
+          {selectedApprovalRequest && <div className="request-approval-modal-backdrop" role="presentation" onClick={() => setSelectedApprovalRequest(null)}>
+            <section className="request-approval-modal" role="dialog" aria-modal="true" aria-labelledby="request-approval-modal-title" onClick={(event) => event.stopPropagation()}>
+              <div className="request-approval-modal-heading"><div><h3 id="request-approval-modal-title">Riwayat persetujuan</h3><p>{selectedApprovalRequest.employee} · {selectedApprovalRequest.type}</p></div><button type="button" className="request-approval-modal-close" aria-label="Tutup detail" onClick={() => setSelectedApprovalRequest(null)}>×</button></div>
+              {selectedApprovalRequest.approvals.length ? <div className="request-approval-modal-list">{selectedApprovalRequest.approvals.map((approval, index) => <article className="request-approval-modal-step" key={`${selectedApprovalRequest.id}-modal-approval-${index}`}><div className="request-approval-modal-step-top"><strong>{approval.name || approval.uid || `Approver ${index + 1}`}</strong><span className="employee-status">{approval.status || "Status belum dicatat"}</span></div>{approval.role && <p>Jabatan: {approval.role}</p>}{approval.at && <p>Waktu: {approval.at}</p>}{approval.note && <p>Catatan: {approval.note}</p>}</article>)}</div> : <p className="employee-state">Belum ada detail persetujuan yang tersimpan.</p>}
+              <div className="request-approval-modal-footer"><span>Approver saat ini: <strong>{selectedApprovalRequest.currentApprover || "—"}</strong></span><button type="button" className="primary-button" onClick={() => setSelectedApprovalRequest(null)}>Tutup</button></div>
+            </section>
+          </div>}
+          <p className="small-note">Riwayat persetujuan dibaca dari field approvalChain, approvals, approvalHistory, atau field approver yang tersedia pada dokumen. Jika nama atau waktu persetujuan tidak tersimpan di Firestore, panel menampilkan UID atau keterangan bahwa detail belum tercatat—tidak membuat data persetujuan sendiri. Halaman ini tetap bersifat baca-saja.</p>
+        </section> : activeSection === "Dashboard" ? <>
+        <section className="summary-grid" aria-label="Ringkasan">
+          <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Hadir Hari Ini</span><span className="summary-icon green">✓</span></div><strong>{stats.present}</strong><p>{statsLoading ? "Memuat data absensi…" : "Kehadiran pada hari ini"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Pengajuan Pending</span><span className="summary-icon amber">◷</span></div><strong>{stats.pending}</strong><p>{statsLoading ? "Memuat data pengajuan…" : "Pengajuan berstatus menunggu"}</p></article>
+          <article className="summary-card"><div className="summary-top"><span>Perlu Ditinjau</span><span className="summary-icon purple">▤</span></div><strong>{stats.review}</strong><p>{statsLoading ? "Memuat ringkasan…" : "Pengajuan yang perlu ditinjau"}</p></article>
+        </section>
+        <section className="content-grid">
+          <article className="content-card main-card"><div className="section-heading"><div><h3>Modul pengelolaan</h3><p>Ruang kerja utama sesuai hak akses akun.</p></div><span className="module-count">06 modul</span></div><div className="module-grid">{menuItems.slice(1).map((item) => <button className="module-tile" key={item.title} type="button" onClick={() => { setActiveSection(item.title); setError(""); }}><span className="module-icon">{item.icon}</span><strong>{item.title}</strong><span>{item.description}</span><span className="tile-arrow">↗</span></button>)}</div></article>
+          <aside className="content-card access-card"><div className="section-heading"><div><h3>Akses akun</h3><p>Role yang aktif saat ini.</p></div></div><div className="role-emblem">♙</div><span className="role-pill">{role}</span><h4>{role === "Admin" ? "Administrator sistem" : role}</h4><p className="muted">{roleDescriptions[role]}</p><div className="access-divider" /><div className="access-status"><span className="secure-dot" /> Akun terverifikasi</div><p className="small-note">Hak akses diverifikasi melalui dokumen controlAdmins di Firestore.</p></aside>
+        </section>
+        </> : activeSection === "Laporan" ? <section className="content-card employees-panel reports-panel">
+          <div className="section-heading"><div><h3>Laporan Kehadiran</h3><p>Ringkasan memakai data absensi yang sama dengan menu Absensi agar tidak membaca ulang koleksi.</p></div><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Perbarui laporan"}</button></div>
+          {attendanceLoading ? <p className="employee-state">Memuat data laporan dari Firestore…</p> : <>
+            <div className="report-summary">
+              <article><span>Total catatan</span><strong>{attendanceRows.length}</strong><small>Semua catatan yang terbaca</small></article>
+              <article><span>Hadir</span><strong>{attendanceRows.filter((item) => /hadir|present/i.test(item.status)).length}</strong><small>Status hadir / present</small></article>
+              <article><span>Izin / sakit / cuti</span><strong>{attendanceRows.filter((item) => /izin|sakit|cuti/i.test(item.status)).length}</strong><small>Status yang tercatat</small></article>
+              <article><span>Perlu diperiksa</span><strong>{attendanceRows.filter((item) => /alpha|alpa|terlambat|tidak diketahui/i.test(item.status)).length}</strong><small>Periksa status dan data</small></article>
+            </div>
+            <div className="section-heading report-subheading"><div><h3>Ringkasan terbaru</h3><p>Sepuluh catatan terbaru berdasarkan tanggal yang tersimpan.</p></div><span className="module-count">{attendanceRows.length} catatan</span></div>
+            <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Jam masuk</th><th>Jam pulang</th><th>Status</th></tr></thead><tbody>
+              {attendanceRows.slice(0, 10).map((item) => <tr key={item.id}><td>{formatAttendanceDate(item.date)}</td><td><strong>{item.name}</strong></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td></tr>)}
+            </tbody></table>{attendanceRows.length === 0 && <p className="employee-state">Belum ada data absensi untuk diringkas.</p>}</div>
+            <p className="small-note">Ringkasan berdasarkan status dan field yang tersedia. Modul ini hanya membaca data dan belum mengubah atau mengekspor catatan.</p>
+          </>}
+        </section> : activeSection === "Pengaturan" ? <section className="content-card settings-panel">
+          <div className="settings-hero"><div className="settings-hero-icon">⚙</div><div><span className="settings-eyebrow">PUSAT KONTROL</span><h3>Pengaturan Sistem</h3><p>Kelola keamanan akun dan tinjau konfigurasi ABSEN CONTROL.</p></div><span className="settings-status"><i /> Akses terverifikasi</span></div>
+          <div className="settings-section-title"><div><h4>Akun & keamanan</h4><p>Identitas akun yang sedang masuk ke panel web.</p></div></div>
+          <div className="settings-account-card"><div className="settings-account-avatar">{(user?.email || role || "A").slice(0,1).toUpperCase()}</div><div className="settings-account-info"><strong>{user?.displayName || user?.email || "Admin ABSEN CONTROL"}</strong><span>{user?.email || "Email tidak tersedia"}</span><small>UID: {user?.uid || "—"}</small></div><span className="settings-role">{role || "Tidak diketahui"}</span></div>
+          <div className="settings-action-grid"><article className="settings-action-card"><span className="settings-action-icon">🔐</span><div><strong>Reset kata sandi</strong><p>Firebase akan mengirim tautan reset ke email akun yang sedang digunakan.</p></div><button type="button" className="settings-action-button" disabled={settingsBusy || !user?.email} onClick={handlePasswordReset}>{settingsBusy ? "Memproses…" : "Kirim tautan reset"}</button></article><article className="settings-action-card"><span className="settings-action-icon">↪</span><div><strong>Keluar dari akun</strong><p>Akhiri sesi panel web pada perangkat ini.</p></div><button type="button" className="settings-action-button secondary" onClick={handleLogout}>Keluar</button></article></div>
+          {settingsNotice && <div className="settings-feedback" role="status">{settingsNotice}</div>}
+          <div className="settings-section-title"><div><h4>Pengaturan Absensi</h4><p>Disimpan pada dokumen <code>systemSettings/attendance</code> di Firestore.</p></div><span className="settings-chip">{attendanceSettingsLoaded ? "Data dimuat" : "Firebase"}</span></div>
+          {attendanceSettingsError && <div className="settings-feedback" role="alert">{attendanceSettingsError}</div>}
+          {attendanceSettingsLoading ? <p className="employee-state">Memuat pengaturan absensi dari Firebase…</p> : <form className="attendance-settings-form" onSubmit={saveAttendanceSettings}>
+            <label className="attendance-settings-toggle"><input type="checkbox" checked={attendanceSettings.enabled} onChange={(event) => setAttendanceSettings((v) => ({...v, enabled: event.target.checked}))} disabled={role === "Manager"} /><span><strong>Pengaturan absensi aktif</strong><small>Menandai konfigurasi aktif untuk integrasi proses absensi berikutnya.</small></span></label>
+            <div className="attendance-settings-grid">
+              <label>Mulai jam masuk<input type="time" value={attendanceSettings.checkInStart} onChange={(event) => setAttendanceSettings((v) => ({...v, checkInStart: event.target.value}))} required disabled={role === "Manager"} /></label>
+              <label>Batas akhir jam masuk<input type="time" value={attendanceSettings.checkInEnd} onChange={(event) => setAttendanceSettings((v) => ({...v, checkInEnd: event.target.value}))} required disabled={role === "Manager"} /></label>
+              <label>Mulai jam pulang<input type="time" value={attendanceSettings.checkOutStart} onChange={(event) => setAttendanceSettings((v) => ({...v, checkOutStart: event.target.value}))} required disabled={role === "Manager"} /></label>
+              <label>Batas akhir jam pulang<input type="time" value={attendanceSettings.checkOutEnd} onChange={(event) => setAttendanceSettings((v) => ({...v, checkOutEnd: event.target.value}))} required disabled={role === "Manager"} /></label>
+              <label>Toleransi terlambat (menit)<input type="number" min="0" max="180" value={attendanceSettings.lateToleranceMinutes} onChange={(event) => setAttendanceSettings((v) => ({...v, lateToleranceMinutes: Number(event.target.value)}))} required disabled={role === "Manager"} /></label>
+              <label>Radius GPS (meter)<input type="number" min="10" max="5000" value={attendanceSettings.geofenceRadiusMeters} onChange={(event) => setAttendanceSettings((v) => ({...v, geofenceRadiusMeters: Number(event.target.value)}))} required disabled={role === "Manager"} /></label>
+            </div>
+            <label className="attendance-settings-toggle"><input type="checkbox" checked={attendanceSettings.requireLocation} onChange={(event) => setAttendanceSettings((v) => ({...v, requireLocation: event.target.checked}))} disabled={role === "Manager"} /><span><strong>Wajibkan lokasi GPS</strong><small>Menyiapkan kebijakan lokasi; validasi GPS belum diberlakukan ke proses check-in.</small></span></label>
+            <p className="small-note">Zona waktu rancangan: WIB (Asia/Jakarta). Konfigurasi ini belum mengubah aturan absensi aktif sampai Rules dan proses check-in web/Android diintegrasikan.</p>
+            {(role === "Admin" || role === "Owner") && <div className="employee-form-actions"><button className="primary-button" type="submit" disabled={attendanceSettingsSaving || attendanceSettingsLoading}>{attendanceSettingsSaving ? "Menyimpan…" : "Simpan pengaturan"}</button><button className="logout-button" type="button" disabled={attendanceSettingsLoading || attendanceSettingsSaving} onClick={() => { setAttendanceSettingsLoaded(false); setAttendanceSettingsError(""); }}>Muat ulang</button></div>}
+            {role === "Manager" && <p className="small-note">Manager hanya dapat melihat pengaturan; penyimpanan dibatasi untuk Admin dan Owner.</p>}
+          </form>}
+          <div className="settings-section-title"><div><h4>Fitur web saat ini</h4><p>Ringkasan modul yang tersedia pada panel ABSEN CONTROL.</p></div></div>
+          <div className="settings-options">
+            <article className="settings-option"><span className="settings-option-icon green">↺</span><div><strong>Riwayat Absensi</strong><p>Telusuri data absensi lama, cari nama/status/ID, filter tanggal, dan muat ulang data dari Firestore. Riwayat bersifat baca-saja.</p><span className="settings-chip">Aktif di tab Absensi</span></div><span className="settings-option-arrow">✓</span></article>
+            <article className="settings-option"><span className="settings-option-icon blue">◷</span><div><strong>Pengaturan Absensi</strong><p>Atur jam masuk/pulang, toleransi keterlambatan, radius GPS, dan kewajiban lokasi. Nilai konfigurasi tersimpan di <code>systemSettings/attendance</code>.</p><span className="settings-chip">Perlu integrasi proses absensi & Rules</span></div><span className="settings-option-arrow">⚙</span></article>
+            <article className="settings-option"><span className="settings-option-icon amber">🔐</span><div><strong>Keamanan akun</strong><p>Reset kata sandi lewat email, keluar dari sesi, dan verifikasi role melalui <code>controlAdmins</code>.</p><span className="settings-chip">Firebase Authentication</span></div><span className="settings-option-arrow">✓</span></article>
+          </div>
+          <div className="settings-options"><article className="settings-option"><span className="settings-option-icon green">♧</span><div><strong>Pengelolaan Admin</strong><p>Perubahan role perlu otorisasi tepercaya dan Firestore Security Rules.</p><span className="settings-chip">Perlu pengamanan server</span></div><span className="settings-option-arrow">›</span></article><article className="settings-option"><span className="settings-option-icon amber">⌁</span><div><strong>Verifikasi akses</strong><p>Panel memeriksa dokumen <code>controlAdmins</code> dan status aktif akun saat login.</p><span className="settings-chip">Firebase Authentication + Firestore</span></div><span className="settings-option-arrow">✓</span></article></div>
+        </section> : <section className="content-card employees-panel"><div className="section-heading"><div><h3>{activeSection}</h3><p>Modul ini belum dihubungkan ke koleksi data terkait.</p></div></div><p className="employee-state">Kita lanjutkan setelah struktur data modul ini dikonfirmasi. Bagian Data Karyawan sudah membaca koleksi <code>users</code>.</p></section>}
+        <footer className="dashboard-footer">ABSEN CONTROL <span>·</span> Panel internal manajemen absensi</footer>
+      </section>
+    </main>
+  );
+}
