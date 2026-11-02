@@ -698,34 +698,40 @@ export default function HomePage() {
   }
 
   async function removeEmployee(employee: EmployeeRecord) {
-    if (!db || (role !== "Admin" && role !== "Owner")) { setError("Hanya Admin atau Owner yang boleh menghapus data karyawan."); return; }
-    if (!window.confirm("Hapus data karyawan " + employee.name + "? Tindakan ini tidak dapat dibatalkan.")) return;
+    if (!db || !user || (role !== "Admin" && role !== "Owner")) { setError("Hanya Admin atau Owner yang boleh menonaktifkan karyawan."); return; }
+    const targetUid = employee.uid || employee.id;
+    if (targetUid === user.uid) { setError("Akun yang sedang digunakan tidak bisa dinonaktifkan dari sesi ini."); return; }
+    if (employee.role.trim().toLowerCase() === "owner") { setError("Akun Owner tidak bisa dinonaktifkan dari menu Data Karyawan."); return; }
+    if (employee.status.trim().toLowerCase() !== "aktif") { setError("Karyawan ini sudah berstatus Nonaktif."); return; }
+    if (!window.confirm("Nonaktifkan akun " + employee.name + "? Profil dan seluruh riwayat tetap disimpan. Akun Firebase Authentication tidak dihapus.")) return;
     setError("");
     try {
-      if (!auth?.currentUser) throw new Error("Sesi login tidak ditemukan.");
-      const functions = getFunctions(auth.app, "asia-southeast1");
-      const deleteEmployeeAccount = httpsCallable(functions, "deleteEmployeeAccount");
-      await deleteEmployeeAccount({ uid: employee.uid || employee.id });
-      setEmployees((current) => current.filter((item) => item.id !== employee.id));
-      setError("Akun Firebase Authentication, profil, dan akses Admin berhasil dihapus. Riwayat absensi/pengajuan/pengaduan tetap dipertahankan.");
+      await updateDoc(doc(db, "users", employee.id), {
+        status: "Nonaktif",
+        statusAkun: "Nonaktif",
+        accountStatus: "Nonaktif",
+        deactivatedAt: serverTimestamp(),
+        deactivatedBy: user.uid,
+        updatedAt: serverTimestamp(),
+      });
+      const adminRef = doc(db, "controlAdmins", targetUid);
+      const adminSnap = await getDoc(adminRef);
+      if (adminSnap.exists()) {
+        await updateDoc(adminRef, {
+          active: false,
+          status: "Nonaktif",
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid,
+        });
+      }
+      setEmployees((current) => current.map((item) => item.id === employee.id ? { ...item, status: "Nonaktif" } : item));
+      setError("Akun berhasil ditandai Nonaktif. Profil, riwayat absensi, pengajuan, dan pengaduan tetap tersimpan. Akun Firebase Authentication belum dihapus atau dinonaktifkan.");
     } catch (cause: unknown) {
       const code = typeof cause === "object" && cause !== null && "code" in cause
         ? String((cause as {code?: unknown}).code ?? "")
         : "";
       const message = cause instanceof Error ? cause.message : String(cause ?? "Kesalahan tidak diketahui.");
-      const details = typeof cause === "object" && cause !== null && "details" in cause
-        ? String((cause as {details?: unknown}).details ?? "")
-        : "";
-      const diagnostic = [code, details || message].filter(Boolean).join(" — ");
-      if (code === "functions/not-found") {
-        setError("Cloud Function deleteEmployeeAccount belum ditemukan di region asia-southeast1. Deploy fungsi ke project Firebase yang dipakai web. " + diagnostic);
-      } else if (code === "functions/permission-denied") {
-        setError("Akses ditolak. Pastikan dokumen controlAdmins/{UID admin} ada, active bernilai true, dan role Admin atau Owner. " + diagnostic);
-      } else if (code === "functions/unauthenticated") {
-        setError("Sesi login Firebase tidak terbaca oleh Cloud Function. Keluar lalu login kembali. " + diagnostic);
-      } else {
-        setError("Penghapusan akun gagal. Detail Firebase: " + (diagnostic || "Tidak ada detail error dari Firebase."));
-      }
+      setError("Gagal menonaktifkan akun. Periksa Firestore Rules untuk izin Admin/Owner memperbarui dokumen users dan controlAdmins. " + [code, message].filter(Boolean).join(" — "));
     }
   }
 
@@ -1030,13 +1036,13 @@ export default function HomePage() {
           </form>}
           <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
           {employeesLoading ? <p className="employee-state">Memuat data karyawan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Nama</th><th>Email</th><th>Jabatan / Divisi</th><th>Role</th><th>Status</th>{(role === "Admin" || role === "Owner") && <th>Aksi</th>}</tr></thead><tbody>
-            {visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{[employee.position, employee.department].filter(Boolean).join(" · ") || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td>{(role === "Admin" || role === "Owner") && <td><div className="employee-row-actions"><button type="button" className="logout-button" onClick={() => openEmployeeForm(employee)}>Edit</button><button type="button" className="employee-delete-button" onClick={() => void removeEmployee(employee)}>Hapus</button></div></td>}</tr>)}
+            {visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{[employee.position, employee.department].filter(Boolean).join(" · ") || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td>{(role === "Admin" || role === "Owner") && <td><div className="employee-row-actions"><button type="button" className="logout-button" onClick={() => openEmployeeForm(employee)}>Edit</button><button type="button" className="logout-button" disabled={employee.status.trim().toLowerCase() !== "aktif" || employee.role.trim().toLowerCase() === "owner" || employee.uid === user?.uid} onClick={() => void removeEmployee(employee)}>{employee.status.trim().toLowerCase() === "aktif" ? "Nonaktifkan" : "Nonaktif"}</button></div></td>}</tr>)}
           </tbody></table>
           {visibleEmployees.length === 0 && !employeesLoading && <p className="employee-state">{role === "Manager" && !managerIdentityFound ? "Akun Manager belum bisa dicocokkan dengan data karyawan. Hubungkan email/UID akun ke dokumen users agar hierarki tim dapat ditampilkan." : "Belum ada karyawan dalam cakupan akses ini."}</p>}
           {visibleEmployees.length > 0 && visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada karyawan yang cocok dengan pencarian.</p>}
           </div>}
           {role === "Manager" && <p className="small-note">Akses Manager dibatasi ke seluruh hierarki bawahan langsung dan tidak langsung. Hubungan tim dibaca dari field atasan/manager pada dokumen karyawan.</p>}
-          <p className="small-note">Fitur tambah, edit, dan hapus tersedia untuk Admin dan Owner. Penghapusan menghapus dokumen users saja, bukan akun Firebase Authentication atau riwayat absensi.</p>
+          <p className="small-note">Fitur tambah, edit, dan penonaktifan tersedia untuk Admin dan Owner. Penonaktifan menandai status di Firestore dan menonaktifkan akses panel Admin bila ada dokumen controlAdmins. Akun Firebase Authentication tidak dihapus/dinonaktifkan oleh fitur ini; aplikasi karyawan perlu memeriksa status Nonaktif saat login agar akses aplikasi benar-benar ditolak. Riwayat absensi, pengajuan, dan pengaduan tetap disimpan.</p>
         </section> : activeSection === "Absensi" ? <section className="content-card employees-panel">
           <div className="section-heading"><div><h3>Rekap Absensi</h3><p>Semua catatan absensi ditampilkan dalam satu daftar dari koleksi <code>attendance</code> di Firestore.</p></div><div className="employee-heading-actions"><span className="module-count">{attendanceRows.length} catatan</span><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Muat ulang"}</button></div></div>
           <div className="employee-toolbar attendance-toolbar">
