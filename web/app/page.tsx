@@ -768,7 +768,7 @@ export default function HomePage() {
           "Authorization": "Bearer " + idToken,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ uid: targetUid }),
+        body: JSON.stringify({ uid: targetUid, profileId: employee.id }),
       });
       const payload = await result.json().catch(() => ({}));
       if (!result.ok || payload.success !== true) {
