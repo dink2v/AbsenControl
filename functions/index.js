@@ -1,4 +1,5 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
@@ -38,7 +39,11 @@ exports.deleteEmployeeAccount = onCall({ region: "asia-southeast1" }, async (req
     await getAuth().updateUser(targetUid, { disabled: true });
   } catch (error) {
     if (error.code !== "auth/user-not-found") {
-      throw new HttpsError("internal", "Gagal menonaktifkan akun Authentication.");
+      logger.error("deleteEmployeeAccount: updateUser failed", {
+        callerUid, targetUid, errorCode: error.code || "unknown",
+        errorMessage: error.message || String(error),
+      });
+      throw new HttpsError("internal", "Gagal menonaktifkan akun Authentication. Kode server: " + (error.code || "unknown"));
     }
   }
 
@@ -47,19 +52,26 @@ exports.deleteEmployeeAccount = onCall({ region: "asia-southeast1" }, async (req
       db.collection("users").doc(targetUid).delete(),
       targetAdminRef.delete(),
     ]);
-    try {
-      await getAuth().deleteUser(targetUid);
-    } catch (error) {
-      if (error.code !== "auth/user-not-found") {
-        // Keep the account disabled if final deletion fails; its access record is gone.
-        throw new HttpsError("internal", "Profil sudah dihapus, tetapi akun Authentication masih dinonaktifkan. Perlu pemeriksaan admin.");
-      }
-    }
-    return { success: true, uid: targetUid, historyPreserved: true };
   } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", "Gagal menghapus profil dan data akses.");
+    logger.error("deleteEmployeeAccount: Firestore profile/access deletion failed", {
+      callerUid, targetUid, errorCode: error.code || "unknown",
+      errorMessage: error.message || String(error),
+    });
+    throw new HttpsError("internal", "Gagal menghapus profil atau dokumen akses Firestore. Kode server: " + (error.code || "unknown"));
   }
+
+  try {
+    await getAuth().deleteUser(targetUid);
+  } catch (error) {
+    if (error.code !== "auth/user-not-found") {
+      logger.error("deleteEmployeeAccount: deleteUser failed after Firestore deletion", {
+        callerUid, targetUid, errorCode: error.code || "unknown",
+        errorMessage: error.message || String(error),
+      });
+      throw new HttpsError("internal", "Profil sudah dihapus dan akun Authentication masih dinonaktifkan. Kode server: " + (error.code || "unknown"));
+    }
+  }
+  return { success: true, uid: targetUid, historyPreserved: true };
 });
 
 
