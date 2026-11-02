@@ -737,7 +737,7 @@ export default function HomePage() {
 
   async function permanentlyDeleteEmployee(employee: EmployeeRecord) {
     if (!db || !user || (role !== "Admin" && role !== "Owner")) {
-      setError("Hanya Admin atau Owner yang boleh menghapus profil karyawan.");
+      setError("Hanya Admin atau Owner yang boleh menghapus akun karyawan.");
       return;
     }
     const targetUid = employee.uid || employee.id;
@@ -750,27 +750,40 @@ export default function HomePage() {
       return;
     }
     if (employee.status.trim().toLowerCase() === "aktif") {
-      setError("Nonaktifkan akun terlebih dahulu sebelum menghapus profil secara permanen.");
+      setError("Nonaktifkan akun terlebih dahulu sebelum menghapusnya secara permanen.");
       return;
     }
-    if (!window.confirm("HAPUS PROFIL PERMANEN?\n\nProfil " + employee.name + " akan dihapus dari koleksi users. Riwayat absensi, pengajuan, dan chat tidak dihapus. Akun Firebase Authentication dan dokumen controlAdmins tidak dihapus otomatis; hapus akun Authentication secara manual melalui Firebase Console.")) return;
-    setError("");
+    const endpoint = process.env.NEXT_PUBLIC_ACCOUNT_DELETE_API;
+    if (!endpoint) {
+      setError("Penghapusan otomatis belum aktif. Backend Cloudflare Worker perlu dipasang dan dikonfigurasi terlebih dahulu. Tidak ada data yang dihapus.");
+      return;
+    }
+    if (!window.confirm("HAPUS AKUN PERMANEN?\\n\\nProfil Firestore dan akun Firebase Authentication milik " + employee.name + " akan dihapus. Dokumen controlAdmins juga dihapus jika ada. Riwayat absensi, pengajuan, dan chat tetap disimpan. Tindakan ini tidak bisa dibatalkan.")) return;
+    setError("Memproses penghapusan profil dan Firebase Authentication…");
     try {
-      const adminRef = doc(db, "controlAdmins", targetUid);
-      const adminSnap = await getDoc(adminRef);
-      if (adminSnap.exists() && adminSnap.data().active === true) {
-        setError("Profil tidak dihapus karena dokumen controlAdmins masih aktif. Nonaktifkan akun admin terlebih dahulu.");
-        return;
+      const idToken = await user.getIdToken();
+      const result = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + idToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uid: targetUid }),
+      });
+      const payload = await result.json().catch(() => ({}));
+      if (!result.ok || payload.success !== true) {
+        if (payload.profileDeleted === true && payload.authenticationDeleted !== true) {
+          setEmployees((current) => current.filter((item) => item.id !== employee.id));
+          setError("Profil sudah dihapus, tetapi akun Firebase Authentication belum terhapus. " + (payload.error || "Hubungi Owner untuk pemeriksaan backend."));
+          return;
+        }
+        throw new Error(payload.error || "Server menolak penghapusan akun.");
       }
-      await deleteDoc(doc(db, "users", employee.id));
       setEmployees((current) => current.filter((item) => item.id !== employee.id));
-      setError("Profil karyawan berhasil dihapus dari users. Riwayat absensi, pengajuan, dan chat tetap tersimpan. Akun Firebase Authentication belum dihapus; hapus secara manual melalui Firebase Console jika diperlukan.");
+      setError("Berhasil! Profil users, akses controlAdmins, dan akun Firebase Authentication sudah dihapus. Riwayat absensi, pengajuan, dan chat tetap tersimpan.");
     } catch (cause: unknown) {
-      const code = typeof cause === "object" && cause !== null && "code" in cause
-        ? String((cause as { code?: unknown }).code ?? "")
-        : "";
       const message = cause instanceof Error ? cause.message : String(cause ?? "Kesalahan tidak diketahui.");
-      setError("Gagal menghapus profil. Periksa Firestore Rules untuk izin delete pada users. " + [code, message].filter(Boolean).join(" — "));
+      setError("Gagal menghapus akun. " + message);
     }
   }
 
