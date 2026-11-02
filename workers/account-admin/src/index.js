@@ -125,7 +125,8 @@ export default {
 
       const body = await request.json();
       const targetUid = typeof body?.uid === "string" ? body.uid.trim() : "";
-      if (!targetUid || targetUid.length > 128) {
+      const profileId = typeof body?.profileId === "string" ? body.profileId.trim() : targetUid;
+      if (!targetUid || targetUid.length > 128 || !profileId || profileId.length > 1500) {
         return response({ error: "UID karyawan tidak valid." }, 400);
       }
       if (targetUid === callerUid) {
@@ -144,7 +145,7 @@ export default {
       }
 
       const [targetProfile, targetAdmin] = await Promise.all([
-        firestoreGet(accessToken, "users", targetUid),
+        firestoreGet(accessToken, "users", profileId),
         firestoreGet(accessToken, "controlAdmins", targetUid),
       ]);
       if (!targetProfile) return response({ error: "Profil karyawan tidak ditemukan." }, 404);
@@ -163,7 +164,7 @@ export default {
       }
 
       // Delete only identity/access documents. Attendance, requests and chat are untouched.
-      await firestoreDelete(accessToken, "users", targetUid);
+      await firestoreDelete(accessToken, "users", profileId);
       if (targetAdmin) await firestoreDelete(accessToken, "controlAdmins", targetUid);
 
       const authDelete = await fetch(
