@@ -24,7 +24,7 @@ function b64url(value) {
   const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+  return btoa(binary).replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_");
 }
 
 async function googleAccessToken(serviceAccount) {
