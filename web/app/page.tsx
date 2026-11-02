@@ -735,6 +735,45 @@ export default function HomePage() {
     }
   }
 
+  async function permanentlyDeleteEmployee(employee: EmployeeRecord) {
+    if (!db || !user || (role !== "Admin" && role !== "Owner")) {
+      setError("Hanya Admin atau Owner yang boleh menghapus profil karyawan.");
+      return;
+    }
+    const targetUid = employee.uid || employee.id;
+    if (targetUid === user.uid || employee.id === user.uid) {
+      setError("Akun yang sedang digunakan tidak bisa dihapus.");
+      return;
+    }
+    if (employee.role.trim().toLowerCase() === "owner") {
+      setError("Akun Owner tidak bisa dihapus dari menu Data Karyawan.");
+      return;
+    }
+    if (employee.status.trim().toLowerCase() === "aktif") {
+      setError("Nonaktifkan akun terlebih dahulu sebelum menghapus profil secara permanen.");
+      return;
+    }
+    if (!window.confirm("HAPUS PROFIL PERMANEN?\n\nProfil " + employee.name + " akan dihapus dari koleksi users. Riwayat absensi, pengajuan, dan chat tidak dihapus. Akun Firebase Authentication dan dokumen controlAdmins tidak dihapus otomatis; hapus akun Authentication secara manual melalui Firebase Console.")) return;
+    setError("");
+    try {
+      const adminRef = doc(db, "controlAdmins", targetUid);
+      const adminSnap = await getDoc(adminRef);
+      if (adminSnap.exists() && adminSnap.data().active === true) {
+        setError("Profil tidak dihapus karena dokumen controlAdmins masih aktif. Nonaktifkan akun admin terlebih dahulu.");
+        return;
+      }
+      await deleteDoc(doc(db, "users", employee.id));
+      setEmployees((current) => current.filter((item) => item.id !== employee.id));
+      setError("Profil karyawan berhasil dihapus dari users. Riwayat absensi, pengajuan, dan chat tetap tersimpan. Akun Firebase Authentication belum dihapus; hapus secara manual melalui Firebase Console jika diperlukan.");
+    } catch (cause: unknown) {
+      const code = typeof cause === "object" && cause !== null && "code" in cause
+        ? String((cause as { code?: unknown }).code ?? "")
+        : "";
+      const message = cause instanceof Error ? cause.message : String(cause ?? "Kesalahan tidak diketahui.");
+      setError("Gagal menghapus profil. Periksa Firestore Rules untuk izin delete pada users. " + [code, message].filter(Boolean).join(" — "));
+    }
+  }
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!auth) return;
@@ -1036,13 +1075,13 @@ export default function HomePage() {
           </form>}
           <div className="employee-toolbar"><input aria-label="Cari karyawan" placeholder="Cari nama, email, divisi…" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} /><button type="button" className="logout-button" onClick={() => setEmployeeSearch("")}>Reset pencarian</button></div>
           {employeesLoading ? <p className="employee-state">Memuat data karyawan dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Nama</th><th>Email</th><th>Jabatan / Divisi</th><th>Role</th><th>Status</th>{(role === "Admin" || role === "Owner") && <th>Aksi</th>}</tr></thead><tbody>
-            {visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{[employee.position, employee.department].filter(Boolean).join(" · ") || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td>{(role === "Admin" || role === "Owner") && <td><div className="employee-row-actions"><button type="button" className="logout-button" onClick={() => openEmployeeForm(employee)}>Edit</button><button type="button" className="logout-button" disabled={employee.status.trim().toLowerCase() !== "aktif" || employee.role.trim().toLowerCase() === "owner" || employee.uid === user?.uid} onClick={() => void removeEmployee(employee)}>{employee.status.trim().toLowerCase() === "aktif" ? "Nonaktifkan" : "Nonaktif"}</button><button type="button" className="logout-button" disabled title="Belum tersedia di Firebase Spark. Penghapusan permanen memerlukan backend tepercaya untuk menghapus Firebase Authentication dan profil tanpa menghilangkan riwayat.">Hapus permanen</button></div></td>}</tr>)}
+            {visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).map((employee) => <tr key={employee.id}><td><strong>{employee.name}</strong><small>ID: {employee.id}</small></td><td>{employee.email || "—"}</td><td>{[employee.position, employee.department].filter(Boolean).join(" · ") || "—"}</td><td>{employee.role}</td><td><span className="employee-status">{employee.status}</span></td>{(role === "Admin" || role === "Owner") && <td><div className="employee-row-actions"><button type="button" className="logout-button" onClick={() => openEmployeeForm(employee)}>Edit</button><button type="button" className="logout-button" disabled={employee.status.trim().toLowerCase() !== "aktif" || employee.role.trim().toLowerCase() === "owner" || employee.uid === user?.uid} onClick={() => void removeEmployee(employee)}>{employee.status.trim().toLowerCase() === "aktif" ? "Nonaktifkan" : "Nonaktif"}</button><button type="button" className="logout-button" disabled={employee.status.trim().toLowerCase() === "aktif" || employee.role.trim().toLowerCase() === "owner" || employee.uid === user?.uid || employee.id === user?.uid} onClick={() => void permanentlyDeleteEmployee(employee)} title={employee.status.trim().toLowerCase() === "aktif" ? "Nonaktifkan akun terlebih dahulu" : "Hapus profil dari Firestore; akun Authentication dihapus manual"}>Hapus permanen</button></div></td>}</tr>)}
           </tbody></table>
           {visibleEmployees.length === 0 && !employeesLoading && <p className="employee-state">{role === "Manager" && !managerIdentityFound ? "Akun Manager belum bisa dicocokkan dengan data karyawan. Hubungkan email/UID akun ke dokumen users agar hierarki tim dapat ditampilkan." : "Belum ada karyawan dalam cakupan akses ini."}</p>}
           {visibleEmployees.length > 0 && visibleEmployees.filter((employee) => [employee.name, employee.email, employee.department, employee.position, employee.role, employee.status].some((value) => value.toLowerCase().includes(employeeSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada karyawan yang cocok dengan pencarian.</p>}
           </div>}
           {role === "Manager" && <p className="small-note">Akses Manager dibatasi ke seluruh hierarki bawahan langsung dan tidak langsung. Hubungan tim dibaca dari field atasan/manager pada dokumen karyawan.</p>}
-          <p className="small-note">Fitur tambah, edit, dan penonaktifan tersedia untuk Admin dan Owner. Penonaktifan menandai status di Firestore; riwayat absensi, pengajuan, dan pengaduan tetap disimpan. Hapus permanen belum tersedia pada paket Firebase Spark: proses yang aman memerlukan backend tepercaya untuk menghapus akun Firebase Authentication dan profil tanpa menghapus riwayat. Tombol Hapus permanen akan diaktifkan setelah backend tersebut tersedia.</p>
+          <p className="small-note">Fitur tambah, edit, dan penonaktifan tersedia untuk Admin dan Owner. Hapus permanen hanya tersedia untuk akun yang sudah Nonaktif: tindakan ini menghapus profil dari koleksi users, tetapi mempertahankan riwayat absensi, pengajuan, dan chat. Akun Firebase Authentication tidak dapat dihapus otomatis dari paket Spark melalui web; hapus secara manual melalui Firebase Console. Dokumen controlAdmins yang sudah Nonaktif tetap disimpan sebagai penanda akses yang dicabut.</p>
         </section> : activeSection === "Absensi" ? <section className="content-card employees-panel">
           <div className="section-heading"><div><h3>Rekap Absensi</h3><p>Semua catatan absensi ditampilkan dalam satu daftar dari koleksi <code>attendance</code> di Firestore.</p></div><div className="employee-heading-actions"><span className="module-count">{attendanceRows.length} catatan</span><button type="button" className="primary-button" onClick={() => setAttendanceReloadKey((key) => key + 1)} disabled={attendanceLoading}>{attendanceLoading ? "Memuat…" : "Muat ulang"}</button></div></div>
           <div className="employee-toolbar attendance-toolbar">
