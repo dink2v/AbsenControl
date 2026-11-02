@@ -84,14 +84,22 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
         db.collection("controlAdmins").document(uid).get()
             .addOnSuccessListener { document ->
                 isLoading = false
-                val allowed = document.exists() && document.getBoolean("active") == true
+                val role = document.getString("role")
+                    ?.trim()
+                    ?.lowercase()
+                    .orEmpty()
+                val allowedRoles = setOf("admin", "owner", "hrd", "manager")
+                val allowed = document.exists() &&
+                    document.getBoolean("active") == true &&
+                    role in allowedRoles
+
                 if (allowed) {
                     isAdmin = true
-                    status = "Akses administrator terverifikasi."
+                    status = "Akses terverifikasi. Role: ${role.uppercase()}."
                 } else {
                     auth.signOut()
                     isAdmin = false
-                    status = "Akses ditolak. Akun ini tidak terdaftar sebagai admin aktif."
+                    status = "Akses ditolak. Pastikan dokumen controlAdmins memiliki role Admin, Owner, HRD, atau Manager dan active = true."
                 }
             }
             .addOnFailureListener {
