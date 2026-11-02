@@ -709,10 +709,23 @@ export default function HomePage() {
       setEmployees((current) => current.filter((item) => item.id !== employee.id));
       setError("Akun Firebase Authentication, profil, dan akses Admin berhasil dihapus. Riwayat absensi/pengajuan/pengaduan tetap dipertahankan.");
     } catch (cause: unknown) {
-      const code = typeof cause === "object" && cause !== null && "code" in cause ? String((cause as {code?: unknown}).code ?? "") : "";
-      setError(code === "functions/not-found"
-        ? "Fungsi penghapusan belum di-deploy ke Firebase. Deploy Cloud Functions terlebih dahulu."
-        : "Penghapusan akun gagal. Pastikan Cloud Function sudah di-deploy dan akses Admin serta Firebase Rules/konfigurasi sudah benar.");
+      const code = typeof cause === "object" && cause !== null && "code" in cause
+        ? String((cause as {code?: unknown}).code ?? "")
+        : "";
+      const message = cause instanceof Error ? cause.message : String(cause ?? "Kesalahan tidak diketahui.");
+      const details = typeof cause === "object" && cause !== null && "details" in cause
+        ? String((cause as {details?: unknown}).details ?? "")
+        : "";
+      const diagnostic = [code, details || message].filter(Boolean).join(" — ");
+      if (code === "functions/not-found") {
+        setError("Cloud Function deleteEmployeeAccount belum ditemukan di region asia-southeast1. Deploy fungsi ke project Firebase yang dipakai web. " + diagnostic);
+      } else if (code === "functions/permission-denied") {
+        setError("Akses ditolak. Pastikan dokumen controlAdmins/{UID admin} ada, active bernilai true, dan role Admin atau Owner. " + diagnostic);
+      } else if (code === "functions/unauthenticated") {
+        setError("Sesi login Firebase tidak terbaca oleh Cloud Function. Keluar lalu login kembali. " + diagnostic);
+      } else {
+        setError("Penghapusan akun gagal. Detail Firebase: " + (diagnostic || "Tidak ada detail error dari Firebase."));
+      }
     }
   }
 
