@@ -2555,3 +2555,109 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .dashboard-layout .employee-heading-actions button { max-width: 100%; }
   .dashboard-layout .complaint-reply-form .primary-button { width: 100%; }
 }
+
+
+/* Data Karyawan: rapikan header, aksi, dan area pencarian */
+.dashboard-layout .employees-panel:not(.organization-panel) > .section-heading {
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 18px;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) > .section-heading > div:first-child {
+  min-width: 180px;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) > .section-heading h3 {
+  margin: 0 0 5px;
+  font-size: 16px;
+  letter-spacing: -.03em;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) > .section-heading p {
+  color: #91a1ba;
+  font-size: 11px;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) .employee-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) .employee-heading-actions .module-count {
+  padding: 7px 10px;
+  border: 1px solid #2b3d5a;
+  border-radius: 8px;
+  background: #172640;
+  color: #c6d5ed;
+  font-size: 10px;
+  font-weight: 700;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) .employee-heading-actions .logout-button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid #2b3d5a;
+  border-radius: 8px;
+  background: #192943;
+  color: #dce7f8;
+  font-size: 11px;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) .employee-heading-actions .primary-button {
+  min-height: 38px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) .employee-toolbar {
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding-top: 15px;
+  border-top: 1px solid #243550;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) .employee-toolbar input {
+  height: 38px;
+  padding: 0 12px;
+  border-color: #2b3d5a;
+  background: #0d192c;
+  color: #e5edf9;
+  font-size: 11px;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) .employee-toolbar input::placeholder {
+  color: #8494ad;
+}
+.dashboard-layout .employees-panel:not(.organization-panel) .employee-toolbar .logout-button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+@media (max-width: 900px) {
+  .dashboard-layout .employees-panel:not(.organization-panel) > .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .dashboard-layout .employees-panel:not(.organization-panel) .employee-heading-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+@media (max-width: 520px) {
+  .dashboard-layout .employees-panel:not(.organization-panel) .employee-heading-actions {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+  .dashboard-layout .employees-panel:not(.organization-panel) .employee-heading-actions .module-count {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .dashboard-layout .employees-panel:not(.organization-panel) .employee-heading-actions button {
+    width: 100%;
+    white-space: nowrap;
+  }
+  .dashboard-layout .employees-panel:not(.organization-panel) .employee-toolbar {
+    align-items: stretch;
+  }
+  .dashboard-layout .employees-panel:not(.organization-panel) .employee-toolbar .logout-button {
+    white-space: nowrap;
+  }
+}
