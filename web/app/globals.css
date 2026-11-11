@@ -2422,3 +2422,53 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   content: none !important;
   display: none !important;
 }
+
+
+/* Chat Pengaduan: konsistenkan daftar percakapan dengan tema navy, termasuk hover */
+.dashboard-layout .complaints-panel .complaint-inbox {
+  background: #101c31 !important;
+  border: 0 !important;
+}
+.dashboard-layout .complaints-panel .complaint-thread,
+.dashboard-layout .complaints-panel .complaint-thread:focus,
+.dashboard-layout .complaints-panel .complaint-thread:focus-visible {
+  background: #14233c !important;
+  color: #edf3ff !important;
+  border: 0 !important;
+  border-bottom: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.dashboard-layout .complaints-panel .complaint-thread:hover {
+  background: #1c3152 !important;
+  color: #ffffff !important;
+}
+.dashboard-layout .complaints-panel .complaint-thread.selected,
+.dashboard-layout .complaints-panel .complaint-thread.selected:hover {
+  background: #203b63 !important;
+  color: #ffffff !important;
+  box-shadow: inset 3px 0 #6d9cff !important;
+}
+.dashboard-layout .complaints-panel .complaint-thread-copy strong {
+  color: #f2f6ff !important;
+}
+.dashboard-layout .complaints-panel .complaint-thread-copy small,
+.dashboard-layout .complaints-panel .complaint-thread-copy span {
+  color: #b5c4dc !important;
+}
+.dashboard-layout .complaints-panel .complaint-avatar {
+  background: #1d355a !important;
+  border: 0 !important;
+  color: #c5d8ff !important;
+}
+.dashboard-layout .complaints-panel .complaint-status {
+  background: #42270f !important;
+  border: 0 !important;
+  color: #ffc17d !important;
+}
+.dashboard-layout .complaints-panel .complaint-inbox-heading {
+  background: #101c31 !important;
+  color: #f2f6ff !important;
+  border: 0 !important;
+}
