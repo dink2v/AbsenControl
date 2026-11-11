@@ -206,11 +206,26 @@ export default {
       );
       if (!authDelete.ok) {
         const detail = await authDelete.json().catch(() => ({}));
+        const authError = detail?.error?.message || "";
+
+        // USER_NOT_FOUND means the Authentication identity is already absent.
+        // Treat this as an idempotent success: the profile/access documents
+        // have been removed and there is no remaining Auth account to delete.
+        if (authError === "USER_NOT_FOUND") {
+          return response({
+            success: true,
+            profileDeleted: true,
+            authenticationDeleted: true,
+            authenticationAlreadyAbsent: true,
+            historyPreserved: true,
+          });
+        }
+
         return response({
           success: false,
           profileDeleted: true,
           authenticationDeleted: false,
-          error: detail?.error?.message || "Profil terhapus, tetapi penghapusan Authentication gagal.",
+          error: authError || "Profil terhapus, tetapi penghapusan Authentication gagal.",
         }, 502);
       }
 
