@@ -2027,3 +2027,142 @@ hr, .divider { border-color: #263752 !important; }
 .dashboard-main > header, .dashboard-main > section {
   background-color: #0b1220 !important;
 }
+
+
+/* FINAL CONSISTENCY PASS — one dark design system across every app section */
+:root {
+  color-scheme: dark;
+  --ac-bg: #0b1220;
+  --ac-panel: #111c30;
+  --ac-panel-raised: #172744;
+  --ac-border: #263752;
+  --ac-text: #edf2ff;
+  --ac-muted: #9aa8c2;
+  --ac-blue: #0044dd;
+  --ac-orange: #fb8200;
+}
+/* Base surfaces and inherited text */
+html, body, #__next, main, .dashboard-layout, .dashboard-main,
+.dashboard-main > *, .dashboard-main > header, .dashboard-main > section {
+  background-color: var(--ac-bg) !important;
+  color: var(--ac-text);
+}
+body { background: var(--ac-bg) !important; }
+h1, h2, h3, h4, h5, p, label, small, strong, span, td, th, li {
+  border-color: var(--ac-border);
+}
+.page-heading, .page-heading *, .topbar, .topbar *,
+.section-heading, .section-heading *, .employee-form-heading,
+.employee-form-heading *, .page-description, .eyebrow {
+  background-color: transparent !important;
+}
+.page-heading .eyebrow, .topbar .eyebrow, .page-description,
+.section-heading p, .muted, .small-note, .account-copy span,
+.form-footnote, .version { color: var(--ac-muted) !important; }
+.topbar, .dashboard-main .topbar {
+  background: var(--ac-bg) !important;
+  border-color: var(--ac-border) !important;
+  box-shadow: none !important;
+}
+.topbar h1, .page-heading h1 { color: #8fb2ff !important; }
+.account-copy strong { color: var(--ac-text) !important; }
+.avatar { background: #172f62 !important; color: #dce7ff !important; border-color: #315db4 !important; }
+.logout-button { background: var(--ac-panel-raised) !important; color: var(--ac-text) !important; border-color: var(--ac-border) !important; }
+/* All reusable card and content surfaces */
+.summary-card, .content-card, .main-card, .access-card,
+.employee-form, .employee-form-card, .settings-panel,
+.settings-option, .settings-account-card, .settings-action-card,
+.organization-department, .organization-member, .organization-team,
+.complaint-inbox, .complaint-chat, .request-card,
+.attendance-card, .report-card, .modal-content, .dialog-content,
+.request-approval-modal, .setup-card, .empty-state, .filter-panel {
+  background: var(--ac-panel) !important;
+  color: var(--ac-text) !important;
+  border-color: var(--ac-border) !important;
+  box-shadow: 0 5px 18px #0003 !important;
+}
+.module-tile, .summary-card, .content-card, .employee-form,
+.settings-option, .settings-account-card, .settings-action-card {
+  border-color: var(--ac-border) !important;
+}
+.module-tile { background: var(--ac-panel) !important; color: var(--ac-text) !important; }
+.module-tile:hover, .summary-card:hover, .content-card:hover {
+  background: #14233d !important;
+  border-color: #315db4 !important;
+}
+/* Forms, controls and dropdowns */
+input, select, textarea, .login-form input, .employee-form-grid input,
+.employee-form-grid select, .employee-toolbar input, .employee-toolbar select,
+.request-toolbar input, .request-toolbar select, .attendance-date-label input,
+.attendance-settings-grid input, .complaint-reply-form textarea {
+  background: #0d182b !important;
+  color: var(--ac-text) !important;
+  border-color: #30415f !important;
+}
+input::placeholder, textarea::placeholder { color: #8291ad !important; }
+option { background: #111c30 !important; color: var(--ac-text) !important; }
+input:focus, select:focus, textarea:focus {
+  border-color: #3974ff !important;
+  box-shadow: 0 0 0 3px #0044dd35 !important;
+}
+/* Tables and list rows */
+.employee-table, .request-table, table { color: var(--ac-text) !important; }
+.employee-table th, .request-table th, table thead th {
+  background: #172744 !important; color: #c5d4ee !important; border-color: var(--ac-border) !important;
+}
+.employee-table td, .request-table td, table td {
+  background: var(--ac-panel) !important; color: #e1e9f8 !important; border-color: var(--ac-border) !important;
+}
+.employee-table tbody tr:hover td, .request-table tbody tr:hover td,
+table tbody tr:hover td { background: #172744 !important; }
+/* Navigation, selected states and buttons */
+.sidebar { background: linear-gradient(180deg,#070d19,#0b1c3d 65%,#09245c) !important; }
+.nav-item { color: #b6c4df !important; }
+.nav-item:hover { background: #ffffff12 !important; color: #fff !important; }
+.nav-item.active { background: var(--ac-blue) !important; color: #fff !important; box-shadow: inset 3px 0 var(--ac-orange) !important; }
+.nav-item.active .nav-icon, .nav-icon { color: #dce7ff !important; }
+.primary-button, .settings-action-button:not(.secondary),
+button.primary, .btn-primary {
+  background: var(--ac-blue) !important; border-color: var(--ac-blue) !important; color: #fff !important;
+}
+.primary-button:hover, .settings-action-button:not(.secondary):hover,
+button.primary:hover, .btn-primary:hover { background: #1558ed !important; }
+.secondary-button, .settings-action-button.secondary,
+.logout-button, button.secondary, .btn-secondary {
+  background: var(--ac-panel-raised) !important; color: var(--ac-text) !important; border-color: var(--ac-border) !important;
+}
+/* Brand surfaces and orange accents */
+.welcome-row, .settings-hero, .login-brand-panel {
+  background: linear-gradient(115deg,#08265f,var(--ac-blue)) !important;
+  color: #fff !important; border-color: #1b58dc !important;
+}
+.welcome-row h2, .welcome-row p, .settings-hero h3,
+.settings-hero p, .login-brand-panel * { color: #fff; }
+.welcome-kicker, .settings-eyebrow { color: #ffbd7b !important; }
+.date-chip { background: var(--ac-orange) !important; color: #fff !important; border-color: var(--ac-orange) !important; }
+.brand-copy h1 span { color: var(--ac-orange) !important; }
+.complaint-thread.selected { background: #33230f !important; box-shadow: inset 3px 0 var(--ac-orange) !important; }
+.complaint-status, .request-status.pending { background: #42270f !important; color: #ffbd7b !important; border-color: #704214 !important; }
+/* Icon tiles and semantic status colors */
+.summary-icon, .module-icon, .role-emblem, .organization-icon,
+.settings-account-avatar, .settings-action-icon, .settings-hero-icon,
+.complaint-avatar { background: #172c54 !important; color: #a9c5ff !important; }
+.summary-icon.amber, .settings-option-icon.amber { background: #42270f !important; color: #ffad55 !important; }
+.summary-icon.green, .settings-option-icon.green { background: #123b32 !important; color: #58d6a8 !important; }
+.summary-icon.purple { background: #2b214b !important; color: #c2a8ff !important; }
+.settings-status { background: #123b32 !important; color: #6be0b5 !important; border-color: #23634f !important; }
+.settings-feedback { background: #12352f !important; color: #9be7c9 !important; border-color: #23634f !important; }
+.alert { background: #3b1b24 !important; color: #ffb7bd !important; border-color: #71313e !important; }
+.chat-bubble { background: #1a2941 !important; color: var(--ac-text) !important; }
+.chat-bubble.admin-message { background: #172f62 !important; color: var(--ac-text) !important; }
+.complaint-thread { color: var(--ac-text) !important; border-color: var(--ac-border) !important; }
+.complaint-thread-copy small, .complaint-thread-copy span,
+.complaint-chat-header p, .chat-bubble small { color: var(--ac-muted) !important; }
+.attendance-tabs { background: #101c31 !important; border-color: var(--ac-border) !important; }
+.attendance-tab { color: #b7c5df !important; }
+.attendance-tab.active { background: var(--ac-blue) !important; color: #fff !important; }
+.attendance-settings-toggle { background: var(--ac-panel) !important; border-color: var(--ac-border) !important; }
+.attendance-settings-toggle strong { color: var(--ac-text) !important; }
+.attendance-settings-toggle small { color: var(--ac-muted) !important; }
+hr, .divider, .complaint-inbox-heading, .complaint-chat-header,
+.complaint-reply-form { border-color: var(--ac-border) !important; }
