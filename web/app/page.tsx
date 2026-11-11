@@ -367,7 +367,28 @@ export default function HomePage() {
       setRequestsLoading(true);
       setError("");
       try {
-        const snapshot = await getDocs(collection(currentDb, "pengajuan"));
+        const [snapshot, usersSnapshot] = await Promise.all([
+          getDocs(collection(currentDb, "pengajuan")),
+          getDocs(collection(currentDb, "users")),
+        ]);
+        const accountLabels = new Map<string, string>();
+        usersSnapshot.docs.forEach((userDoc) => {
+          const userData = userDoc.data() as Record<string, unknown>;
+          const uid = String(userData.uid ?? userData.userId ?? userDoc.id);
+          const email = String(userData.email ?? userData.emailKaryawan ?? userData.userEmail ?? "").trim();
+          const name = String(userData.nama ?? userData.namaLengkap ?? userData.name ?? userData.fullName ?? userData.displayName ?? "").trim();
+          const label = name || email;
+          if (label) {
+            accountLabels.set(uid, label);
+            accountLabels.set(userDoc.id, label);
+            if (email) accountLabels.set(email, label);
+          }
+        });
+        const resolveAccountLabel = (value: string) => {
+          const normalized = value.trim();
+          if (!normalized) return "";
+          return accountLabels.get(normalized) || (normalized.includes("@") ? normalized : "Akun tidak ditemukan");
+        };
         const readText = (value: unknown): string => {
           if (value == null) return "";
           if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
@@ -394,8 +415,12 @@ export default function HomePage() {
                 if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
                 const step = entry as Record<string, unknown>;
                 return {
-                  name: pick(step, ["approverName", "approvedByName", "namaApprover", "namaAtasan", "nama", "name", "displayName", "email"]) || "",
-                  uid: pick(step, ["approverUid", "approvedByUid", "uid", "userId", "approvedBy", "approvedById"]) || "",
+                  name: (() => {
+                    const storedName = pick(step, ["approverName", "approvedByName", "namaApprover", "namaAtasan", "nama", "name", "displayName", "email"]);
+                    const storedUid = pick(step, ["approverUid", "approvedByUid", "uid", "userId", "approvedBy", "approvedById"]);
+                    return resolveAccountLabel(storedName) || resolveAccountLabel(storedUid) || storedName || "";
+                  })(),
+                  uid: "",
                   role: pick(step, ["role", "jabatan", "position", "approverRole"]) || "",
                   status: pick(step, ["status", "decision", "action", "approvalStatus", "state"]) || "",
                   at: pick(step, ["approvedAt", "actedAt", "updatedAt", "createdAt", "timestamp", "waktu", "tanggal", "processedAt"]) || "",
@@ -408,8 +433,8 @@ export default function HomePage() {
             const scalarStatus = pick(data, ["approvalStatus", "approvalDecision", "decision", "approvalAction"]);
             const scalarAt = pick(data, ["approvedAt", "approvalAt", "approved_at", "tanggalPersetujuan", "waktuPersetujuan"]);
             if (scalarApprover || scalarStatus || scalarAt) approvals.push({
-              name: pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju"]) || "",
-              uid: pick(data, ["approvedByUid", "approverUid", "approvedById", "approvedBy", "approver"]) || "",
+              name: resolveAccountLabel(pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju", "approvedByUid", "approverUid", "approvedById", "approvedBy", "approver"])) || "",
+              uid: "",
               role: pick(data, ["approverRole", "jabatanApprover", "approvalRole"]) || "",
               status: scalarStatus || "Tercatat",
               at: scalarAt,
@@ -427,7 +452,7 @@ export default function HomePage() {
             endDate: pick(data, ["tanggalSelesai", "selesai", "tanggalAkhir", "endDate", "sampaiTanggal"]),
             reason: pick(data, ["alasan", "keterangan", "deskripsi", "reason", "catatan", "detail", "pesan"]),
             approvals,
-            currentApprover: pick(data, ["currentApproverName", "currentApproverUid", "currentApprover", "pendingApprover", "approverSaatIni"]) || "",
+            currentApprover: resolveAccountLabel(pick(data, ["currentApproverName", "currentApproverUid", "currentApprover", "pendingApprover", "approverSaatIni"])) || "—",
             raw: data,
           } satisfies RequestRecord;
         }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt, "id"));
@@ -1145,7 +1170,7 @@ export default function HomePage() {
           {selectedApprovalRequest && <div className="request-approval-modal-backdrop" role="presentation" onClick={() => setSelectedApprovalRequest(null)}>
             <section className="request-approval-modal" role="dialog" aria-modal="true" aria-labelledby="request-approval-modal-title" onClick={(event) => event.stopPropagation()}>
               <div className="request-approval-modal-heading"><div><h3 id="request-approval-modal-title">Riwayat persetujuan</h3><p>{selectedApprovalRequest.employee} · {selectedApprovalRequest.type}</p></div><button type="button" className="request-approval-modal-close" aria-label="Tutup detail" onClick={() => setSelectedApprovalRequest(null)}>×</button></div>
-              {selectedApprovalRequest.approvals.length ? <div className="request-approval-modal-list">{selectedApprovalRequest.approvals.map((approval, index) => <article className="request-approval-modal-step" key={`${selectedApprovalRequest.id}-modal-approval-${index}`}><div className="request-approval-modal-step-top"><strong>{approval.name || approval.uid || `Approver ${index + 1}`}</strong><span className="employee-status">{approval.status || "Status belum dicatat"}</span></div>{approval.role && <p>Jabatan: {approval.role}</p>}{approval.at && <p>Waktu: {approval.at}</p>}{approval.note && <p>Catatan: {approval.note}</p>}</article>)}</div> : <p className="employee-state">Belum ada detail persetujuan yang tersimpan.</p>}
+              {selectedApprovalRequest.approvals.length ? <div className="request-approval-modal-list">{selectedApprovalRequest.approvals.map((approval, index) => <article className="request-approval-modal-step" key={`${selectedApprovalRequest.id}-modal-approval-${index}`}><div className="request-approval-modal-step-top"><strong>{approval.name || `Approver ${index + 1}`}</strong><span className="employee-status">{approval.status || "Status belum dicatat"}</span></div>{approval.role && <p>Jabatan: {approval.role}</p>}{approval.at && <p>Waktu: {approval.at}</p>}{approval.note && <p>Catatan: {approval.note}</p>}</article>)}</div> : <p className="employee-state">Belum ada detail persetujuan yang tersimpan.</p>}
               <div className="request-approval-modal-footer"><span>Approver saat ini: <strong>{selectedApprovalRequest.currentApprover || "—"}</strong></span><button type="button" className="primary-button" onClick={() => setSelectedApprovalRequest(null)}>Tutup</button></div>
             </section>
           </div>}
