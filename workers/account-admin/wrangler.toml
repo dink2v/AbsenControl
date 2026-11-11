@@ -6,3 +6,6 @@ keep_vars = true
 
 [vars]
 FIREBASE_PROJECT_ID = "absensi-karyawan-2b712"
+
+[secrets]
+required = ["FIREBASE_SERVICE_ACCOUNT"]
