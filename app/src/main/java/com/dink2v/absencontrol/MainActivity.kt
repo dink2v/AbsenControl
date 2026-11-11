@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
@@ -74,6 +76,7 @@ class MainActivity : ComponentActivity() {
 private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var isAdmin by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Masuk menggunakan akun administrator.") }
@@ -123,6 +126,8 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
         LoginScreen(
             email = email,
             password = password,
+            showPassword = showPassword,
+            onTogglePassword = { showPassword = !showPassword },
             status = status,
             isLoading = isLoading,
             onEmailChange = { email = it },
@@ -164,6 +169,8 @@ private fun AdminApp(auth: FirebaseAuth, db: FirebaseFirestore) {
 private fun LoginScreen(
     email: String,
     password: String,
+    showPassword: Boolean,
+    onTogglePassword: () -> Unit,
     status: String,
     isLoading: Boolean,
     onEmailChange: (String) -> Unit,
@@ -212,7 +219,12 @@ private fun LoginScreen(
             onValueChange = onPasswordChange,
             label = { Text("Password") },
             singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                TextButton(onClick = onTogglePassword, enabled = !isLoading) {
+                    Text(if (showPassword) "Sembunyikan" else "Lihat", fontSize = 12.sp)
+                }
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
             enabled = !isLoading,
@@ -235,7 +247,20 @@ private fun LoginScreen(
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text(status, color = if (status.startsWith("Login gagal") || status.startsWith("Akses ditolak") || status.startsWith("Verifikasi")) Color(0xFFB42318) else Muted, fontSize = 13.sp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (status.startsWith("Login gagal") || status.startsWith("Akses ditolak") || status.startsWith("Verifikasi") || status.startsWith("Isi email")) Color(0xFFFFEEEE) else Color(0xFFEAF1FF)
+            )
+        ) {
+            Text(
+                status,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                color = if (status.startsWith("Login gagal") || status.startsWith("Akses ditolak") || status.startsWith("Verifikasi") || status.startsWith("Isi email")) Color(0xFFB42318) else Navy,
+                fontSize = 13.sp
+            )
+        }
         TextButton(onClick = onClear, enabled = !isLoading) {
             Text("Bersihkan formulir")
         }
@@ -321,9 +346,9 @@ private fun DashboardScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(Modifier.padding(18.dp)) {
-                        Text("Tahap rancangan UI", color = Navy, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Segera hadir", color = Navy, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Spacer(Modifier.height(8.dp))
-                        Text("Tampilan dasar sudah disiapkan. Langkah berikutnya adalah menghubungkan halaman ini ke data Firebase dan menambahkan aksi admin.", color = Muted, fontSize = 14.sp)
+                        Text("Halaman ini masih dalam tahap pengembangan. Data dan tindakan admin akan ditampilkan setelah integrasi Firebase selesai.", color = Muted, fontSize = 14.sp)
                     }
                 }
             }
