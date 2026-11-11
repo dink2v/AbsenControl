@@ -94,16 +94,27 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
-      let serviceAccountJsonValid = false;
+      let present = false;
+      let valid = false;
+      let projectConfigured = false;
       try {
-        const account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT || "");
-        serviceAccountJsonValid = Boolean(account?.client_email && account?.private_key);
+        const secret = env && env.FIREBASE_SERVICE_ACCOUNT;
+        present = typeof secret === "string" && secret.trim().length > 0;
+        if (present) {
+          const account = JSON.parse(secret);
+          valid = Boolean(account && typeof account.client_email === "string" &&
+            typeof account.private_key === "string" && account.client_email && account.private_key);
+        }
+        projectConfigured = Boolean(env && env.FIREBASE_PROJECT_ID) || Boolean(FIREBASE_PROJECT_ID);
       } catch {}
-      return response({
+      return new Response(JSON.stringify({
         service: "absencontrol",
-        firebaseServiceAccountPresent: typeof env.FIREBASE_SERVICE_ACCOUNT === "string" && env.FIREBASE_SERVICE_ACCOUNT.length > 0,
-        firebaseServiceAccountJsonValid,
-        firebaseProjectConfigured: Boolean(env.FIREBASE_PROJECT_ID || FIREBASE_PROJECT_ID),
+        firebaseServiceAccountPresent: present,
+        firebaseServiceAccountJsonValid: valid,
+        firebaseProjectConfigured: projectConfigured
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
       });
     }
     const origin = request.headers.get("Origin") || "";
