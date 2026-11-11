@@ -92,6 +92,20 @@ function fieldBoolean(document, key) {
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/health") {
+      let serviceAccountJsonValid = false;
+      try {
+        const account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT || "");
+        serviceAccountJsonValid = Boolean(account?.client_email && account?.private_key);
+      } catch {}
+      return response({
+        service: "absencontrol",
+        firebaseServiceAccountPresent: typeof env.FIREBASE_SERVICE_ACCOUNT === "string" && env.FIREBASE_SERVICE_ACCOUNT.length > 0,
+        firebaseServiceAccountJsonValid,
+        firebaseProjectConfigured: Boolean(env.FIREBASE_PROJECT_ID || FIREBASE_PROJECT_ID),
+      });
+    }
     const origin = request.headers.get("Origin") || "";
     if (request.method === "OPTIONS") {
       if (origin !== ALLOWED_ORIGIN) return new Response(null, { status: 403 });
