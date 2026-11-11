@@ -2001,3 +2001,54 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .employee-form .primary-button {
   color: #ffffff;
 }
+
+
+/* Tambah karyawan — tema gelap dengan teks putih yang kontras */
+.employee-form,
+.employee-form * {
+  color-scheme: dark;
+}
+.employee-form {
+  background: #171c27;
+  border-color: #394456;
+  color: #ffffff;
+}
+.employee-form-heading h4,
+.employee-form-heading p,
+.employee-form-grid label,
+.employee-form label,
+.employee-form small,
+.employee-form .muted,
+.employee-form .small-note,
+.employee-form .field-help,
+.employee-form-actions {
+  color: #ffffff !important;
+}
+.employee-form-grid input,
+.employee-form-grid select,
+.employee-form input,
+.employee-form select {
+  background: #242c3a;
+  color: #ffffff;
+  border-color: #596579;
+}
+.employee-form input::placeholder {
+  color: #d1d5db;
+  opacity: 1;
+}
+.employee-form-grid input:focus,
+.employee-form-grid select:focus,
+.employee-form input:focus,
+.employee-form select:focus {
+  border-color: #9bb8ff;
+  outline: 2px solid rgba(155, 184, 255, .24);
+  outline-offset: 1px;
+}
+.employee-form button.logout-button {
+  color: #ffffff;
+  background: #30394a;
+  border-color: #596579;
+}
+.employee-form .primary-button {
+  color: #ffffff;
+}
