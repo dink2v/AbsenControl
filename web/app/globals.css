@@ -2052,3 +2052,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .employee-form .primary-button {
   color: #ffffff;
 }
+
+/* Dashboard: improve contrast for today's date chip */
+.date-chip .date-chip-label,
+.date-chip strong {
+  color: #ffffff !important;
+}
