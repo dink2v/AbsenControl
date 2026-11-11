@@ -1720,3 +1720,129 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .request-approval-modal-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px;border-top:1px solid #edf0eb;color:#687164;font-size:11px}
 .request-approval-modal-footer strong{color:var(--forest)}
 @media(max-width:600px){.request-approval-modal-backdrop{padding:12px}.request-approval-modal{padding:16px;border-radius:14px;max-height:88vh}.request-approval-modal-step-top{align-items:flex-start;flex-direction:column}.request-approval-modal-footer{align-items:flex-start;flex-direction:column}}
+
+
+/* ABSEN CONTROL brand palette — ITQON-inspired blue, orange, and soft white */
+:root {
+  --brand-blue: #0044dd;
+  --brand-orange: #fb8200;
+  --brand-surface: #f8f9fd;
+  --forest: var(--brand-blue);
+  --forest-dark: #0035ad;
+  --forest-soft: #1555e8;
+  --blue: var(--brand-blue);
+  --navy: var(--brand-blue);
+  --navy-2: #0039bd;
+  --ink: #17264a;
+  --muted: #71809b;
+  --line: #e5eaf4;
+  --bg: var(--brand-surface);
+  --white: #fff;
+  --green: #16845e;
+  --border: var(--line);
+  --border-color: var(--line);
+  --card-bg: #fff;
+  --surface: #fff;
+  --foreground: var(--ink);
+}
+html, body { background: var(--brand-surface); color: var(--ink); }
+.dashboard-main { background: var(--brand-surface); }
+.sidebar {
+  background: linear-gradient(180deg, var(--brand-blue), #0037b8);
+  color: #fff;
+}
+.sidebar .brand-mark,
+.brand-mark {
+  background: linear-gradient(145deg, #2870ff, var(--brand-blue));
+  color: #fff;
+  box-shadow: 0 7px 20px #002e9c40;
+}
+.brand-light { color: #cbd9ff; }
+.brand-copy h1 span { color: #ffad55; }
+.nav-caption { color: #c1d2ff; }
+.nav-item { color: #d9e4ff; }
+.nav-item:hover { background: #ffffff18; color: #fff; }
+.nav-item.active {
+  background: var(--brand-orange);
+  color: #fff;
+  box-shadow: inset 3px 0 #ffd2a3;
+}
+.nav-icon, .active-indicator { color: #fff; }
+.active-indicator { background: #fff; }
+.primary-button,
+.settings-action-button:not(.secondary) {
+  background: var(--brand-blue);
+  border-color: var(--brand-blue);
+  color: #fff;
+  box-shadow: 0 7px 18px #0044dd26;
+}
+.primary-button:hover:not(:disabled),
+.settings-action-button:not(.secondary):hover {
+  background: #0038b8;
+  border-color: #0038b8;
+}
+.logout-button { color: var(--brand-blue); }
+.welcome-row {
+  background: linear-gradient(120deg, var(--brand-blue), #1558eb);
+  color: #fff;
+  border: 1px solid #0044dd;
+}
+.welcome-row h2, .welcome-row p { color: #fff; }
+.date-chip { background: #fff; color: var(--brand-blue); }
+.summary-card, .content-card { background: #fff; }
+.summary-icon.blue, .module-icon, .role-emblem,
+.organization-icon, .settings-action-icon.blue {
+  background: #e9efff;
+  color: var(--brand-blue);
+}
+.summary-icon.amber { background: #fff1e2; color: #c96500; }
+.summary-icon.purple { background: #f1edff; color: #7652c8; }
+.nav-item.active .nav-icon { color: #fff; }
+.attendance-tabs { background: #edf2ff; border-color: #dce6ff; }
+.attendance-tab:hover, .attendance-tab.active { color: var(--brand-blue); }
+.attendance-tab.active { background: #fff; box-shadow: 0 2px 8px #0044dd18; }
+.employee-status, .role-pill, .settings-status {
+  background: #e9efff;
+  color: var(--brand-blue);
+}
+.employee-table th { background: #f0f4ff; color: #53658d; }
+.employee-table tbody tr:hover { background: #f5f7ff; }
+.module-tile:hover { border-color: #9bb6ff; }
+.login-brand-panel {
+  background: radial-gradient(circle at 15% 15%, #2865e8 0, transparent 38%),
+    linear-gradient(145deg, #002d9e, var(--brand-blue) 72%, #1558eb);
+}
+.login-form input:focus, .employee-toolbar input:focus,
+.attendance-settings-grid input:focus, .complaint-reply-form textarea:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px #0044dd18;
+}
+.settings-hero {
+  background: linear-gradient(120deg, var(--brand-blue), #1558eb);
+  border-color: var(--brand-blue);
+}
+.settings-hero h3, .settings-hero p { color: #fff; }
+.settings-eyebrow { color: #ffd2a3; }
+.settings-hero-icon, .settings-action-icon {
+  background: #e9efff;
+  color: var(--brand-blue);
+}
+.settings-action-button.secondary {
+  background: #fff;
+  color: var(--brand-blue);
+  border-color: #dce5fa;
+}
+.complaint-thread.selected { background: #fff3e7; box-shadow: inset 3px 0 var(--brand-orange); }
+.complaint-status { background: #fff1e2; color: #b95d00; border-color: #ffdfbf; }
+.chat-bubble.admin-message { background: #e9efff; border-color: #dce6ff; color: var(--ink); }
+.request-approval-detail-button { color: var(--brand-blue); border-color: #dce5fa; }
+.request-approval-modal-heading h3,
+.request-approval-modal-step-top strong,
+.request-approval-modal-footer strong { color: var(--brand-blue); }
+.request-approval-modal-step { border-color: #e5eaf4; background: #fbfcff; }
+.request-approval-modal-close { background: #fff1e2; color: #b95d00; }
+.employee-delete-button { color: #a52a2a; }
+button:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, .module-tile:focus-visible {
+  outline-color: #0044dd55;
+}
