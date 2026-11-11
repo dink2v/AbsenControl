@@ -1846,3 +1846,146 @@ button:focus-visible, input:focus-visible, select:focus-visible,
 textarea:focus-visible, .module-tile:focus-visible {
   outline-color: #0044dd55;
 }
+
+
+/* ABSEN CONTROL — complete dark theme using brand blue and orange */
+:root {
+  color-scheme: dark;
+  --brand-blue: #0044dd;
+  --brand-orange: #fb8200;
+  --brand-surface: #0b1220;
+  --navy: #080f1e;
+  --navy-2: #111d33;
+  --forest: #0044dd;
+  --forest-dark: #0035ad;
+  --forest-soft: #1555e8;
+  --blue: #0044dd;
+  --ink: #edf2ff;
+  --muted: #9aa8c2;
+  --line: #26344d;
+  --bg: #0b1220;
+  --white: #111c30;
+  --green: #31bd8a;
+  --border: #26344d;
+  --border-color: #26344d;
+  --card-bg: #111c30;
+  --surface: #111c30;
+  --foreground: #edf2ff;
+}
+html, body { background: #0b1220 !important; color: #edf2ff !important; }
+body, .dashboard-main { background: #0b1220 !important; color: #edf2ff; }
+.login-layout, .login-panel { background: #0b1220 !important; color: #edf2ff; }
+.login-brand-panel {
+  background: radial-gradient(circle at 15% 15%, #123b91 0, transparent 40%),
+    linear-gradient(145deg, #070d19, #09245c 72%, #0044dd) !important;
+}
+.login-form input, input, select, textarea {
+  background: #101c31 !important;
+  color: #edf2ff !important;
+  border-color: #30415f !important;
+}
+input::placeholder, textarea::placeholder { color: #8291ad !important; }
+input:focus, select:focus, textarea:focus {
+  border-color: #3974ff !important;
+  box-shadow: 0 0 0 3px #0044dd35 !important;
+}
+.sidebar {
+  background: linear-gradient(180deg, #070d19, #0b1c3d 65%, #09245c) !important;
+  color: #edf2ff;
+}
+.sidebar .brand-mark, .brand-mark {
+  background: linear-gradient(145deg, #1760ff, #0044dd) !important;
+  color: #fff;
+}
+.brand-light, .nav-caption { color: #9aadd2 !important; }
+.brand-copy h1 span { color: #fb8200 !important; }
+.nav-item { color: #b6c4df !important; }
+.nav-item:hover { background: #ffffff12 !important; color: #fff !important; }
+.nav-item.active {
+  background: #0044dd !important;
+  color: #fff !important;
+  box-shadow: inset 3px 0 #fb8200;
+}
+.nav-item.active .nav-icon, .nav-icon { color: #dce7ff !important; }
+.active-indicator { background: #fb8200 !important; }
+.welcome-row, .settings-hero {
+  background: linear-gradient(115deg, #08265f, #0044dd) !important;
+  border: 1px solid #1b58dc !important;
+  color: #fff !important;
+}
+.welcome-row h2, .welcome-row p, .settings-hero h3, .settings-hero p { color: #fff !important; }
+.settings-eyebrow, .brand-copy .eyebrow { color: #ffbd7b !important; }
+.date-chip { background: #fb8200 !important; color: #fff !important; }
+.summary-card, .content-card, .employee-form, .organization-department,
+.settings-option, .settings-account-card, .settings-action-card,
+.complaint-inbox, .complaint-chat, .request-approval-modal,
+.modal-content, .setup-card {
+  background: #111c30 !important;
+  color: #edf2ff !important;
+  border-color: #263752 !important;
+}
+.summary-card:hover, .content-card:hover, .module-tile:hover {
+  border-color: #315db4 !important;
+  box-shadow: 0 8px 24px #0006;
+}
+.module-tile { background: #111c30 !important; color: #edf2ff !important; border-color: #263752 !important; }
+.summary-icon, .module-icon, .role-emblem, .organization-icon,
+.settings-account-avatar, .settings-action-icon, .settings-hero-icon {
+  background: #172c54 !important;
+  color: #8fb2ff !important;
+}
+.summary-icon.amber, .settings-option-icon.amber { background: #42270f !important; color: #ffad55 !important; }
+.summary-icon.green, .settings-option-icon.green { background: #123b32 !important; color: #58d6a8 !important; }
+.summary-icon.purple { background: #2b214b !important; color: #c2a8ff !important; }
+.employee-table-wrap, .request-table-wrap { background: #101b2e !important; border-color: #263752 !important; }
+.employee-table, .request-table { color: #e7edfb !important; }
+.employee-table th, .request-table th { background: #172744 !important; color: #b9c9e8 !important; border-color: #2a3a57 !important; }
+.employee-table td, .request-table td { border-color: #263752 !important; color: #e1e9f8 !important; }
+.employee-table tbody tr:hover, .request-table tbody tr:hover { background: #172744 !important; }
+.employee-form-grid label, .attendance-settings-grid label { color: #dce6f8 !important; }
+.employee-form-heading p, .section-heading p, .page-description,
+.muted, .small-note, .form-footnote { color: #9aa8c2 !important; }
+.employee-form .small-note, .requests-panel .small-note {
+  background: #172744 !important; border-color: #315db4 !important; color: #c5d4ee !important;
+}
+.primary-button, .settings-action-button:not(.secondary), .request-refresh {
+  background: #0044dd !important; border-color: #0044dd !important; color: #fff !important;
+}
+.primary-button:hover, .settings-action-button:not(.secondary):hover {
+  background: #1558ed !important; border-color: #1558ed !important;
+}
+.logout-button, .settings-action-button.secondary {
+  background: #172744 !important; border-color: #30415f !important; color: #dce6f8 !important;
+}
+button { color: inherit; }
+button:disabled { opacity: .55; }
+.employee-status, .role-pill, .settings-role {
+  background: #172f62 !important; color: #b9d0ff !important; border-color: #294d91 !important;
+}
+.settings-status { background: #123b32 !important; color: #6be0b5 !important; border-color: #23634f !important; }
+.settings-status i { background: #31bd8a !important; }
+.settings-feedback { background: #12352f !important; border-color: #23634f !important; color: #9be7c9 !important; }
+.settings-chip { background: #1a2941 !important; border-color: #30415f !important; color: #b9c8e1 !important; }
+.settings-option-icon.blue { background: #172f62 !important; color: #9dbbff !important; }
+.complaint-thread { color: #e7edfb !important; border-color: #263752 !important; }
+.complaint-thread.selected { background: #33230f !important; box-shadow: inset 3px 0 #fb8200; }
+.complaint-thread-copy small, .complaint-thread-copy span,
+.complaint-chat-header p, .chat-bubble small { color: #9aa8c2 !important; }
+.complaint-status { background: #42270f !important; color: #ffbd7b !important; border-color: #704214 !important; }
+.complaint-avatar { background: #172f62 !important; color: #b9d0ff !important; }
+.chat-bubble { background: #1a2941 !important; color: #edf2ff !important; }
+.chat-bubble.admin-message { background: #172f62 !important; color: #edf2ff !important; }
+.complaint-reply-form { border-color: #263752 !important; }
+.attendance-settings-toggle { background: #111c30 !important; border-color: #263752 !important; }
+.attendance-settings-toggle strong { color: #edf2ff !important; }
+.attendance-settings-toggle small { color: #9aa8c2 !important; }
+.attendance-settings-grid input:disabled { background: #17243a !important; color: #8291ad !important; }
+.attendance-tabs { background: #101c31 !important; border-color: #263752 !important; }
+.attendance-tab { color: #b7c5df !important; }
+.attendance-tab.active { background: #0044dd !important; color: #fff !important; }
+.alert { background: #3b1b24 !important; border-color: #71313e !important; color: #ffb7bd !important; }
+.employee-delete-button { background: #351b25 !important; border-color: #71313e !important; color: #ffadb5 !important; }
+.employee-delete-button:hover { background: #4a202d !important; }
+.request-approval-modal-step { background: #17243a !important; border-color: #30415f !important; color: #e7edfb !important; }
+.request-approval-modal-close { background: #42270f !important; color: #ffbd7b !important; }
+hr, .divider { border-color: #263752 !important; }
