@@ -2191,3 +2191,55 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .dashboard-layout :is(.employee-table td,.request-table td) { font-size: 11px; }
   .dashboard-layout .module-tile strong { font-size: 12px; }
 }
+
+/* Laporan: hierarki warna teks yang konsisten pada tema gelap */
+.reports-panel,
+.reports-panel .section-heading h3,
+.reports-panel .report-summary,
+.reports-panel .report-summary article,
+.reports-panel .report-summary article strong,
+.reports-panel .employee-table,
+.reports-panel .employee-table td,
+.reports-panel .employee-table td strong {
+  color: #dce6f5 !important;
+}
+.reports-panel .section-heading p,
+.reports-panel .report-summary article span,
+.reports-panel .report-summary article small,
+.reports-panel .employee-table td small,
+.reports-panel > .small-note,
+.reports-panel .employee-state {
+  color: #9aa8c2 !important;
+}
+.reports-panel .report-summary article {
+  background: #111c30 !important;
+  border-color: #263752 !important;
+}
+.reports-panel .report-summary article strong {
+  color: #e5edfa !important;
+}
+.reports-panel .employee-table th {
+  background: #172744 !important;
+  color: #bdcce3 !important;
+  border-color: #263752 !important;
+}
+.reports-panel .employee-table td {
+  background: #111c30 !important;
+  color: #cbd7e9 !important;
+  border-color: #263752 !important;
+}
+.reports-panel .employee-table td strong {
+  color: #e1eafa !important;
+}
+.reports-panel .employee-table tbody tr:hover td {
+  background: #172744 !important;
+}
+.reports-panel .employee-status {
+  background: #123b32 !important;
+  color: #8aebc8 !important;
+  border: 1px solid #23634f !important;
+}
+.employee-status,
+.role-pill {
+  border: 1px solid #23634f !important;
+}
