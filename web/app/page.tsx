@@ -30,6 +30,19 @@ function formatAttendanceDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "2-digit", year: "numeric" }).format(parsed);
 }
 
+
+function getCheckInLabel(checkIn: string, cutoff: string, toleranceMinutes: number) {
+  if (!checkIn) return "Belum Absen Masuk";
+  const toMinutes = (value: string) => {
+    const match = value.trim().match(/^(\d{1,2}):(\d{2})/);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+  };
+  const actualMinutes = toMinutes(checkIn);
+  const cutoffMinutes = toMinutes(cutoff);
+  if (actualMinutes === null || cutoffMinutes === null) return "Tidak diketahui";
+  return actualMinutes > cutoffMinutes + toleranceMinutes ? "Masuk Terlambat" : "Tepat Waktu";
+}
+
 const roleDescriptions: Record<Role, string> = {
   Supervisor: "Persetujuan pengajuan sesuai jalur atasan",
   Manager: "Pemantauan tim dan pengajuan sesuai wewenang",
@@ -1102,8 +1115,8 @@ export default function HomePage() {
             <label className="attendance-date-label">Tanggal <input aria-label="Filter tanggal absensi" type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label>
             <button type="button" className="logout-button" onClick={() => { setAttendanceSearch(""); setAttendanceDate(""); }}>Reset filter</button>
           </div>
-          {attendanceLoading ? <p className="employee-state">Memuat catatan absensi dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Kantor / Lokasi</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>ID Dokumen</th></tr></thead><tbody>
-            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{formatAttendanceDate(item.date)}</td><td><strong>{item.name}</strong></td><td><strong>{item.office || "Kantor belum tercatat"}</strong><small>{[item.officeAddress, item.coordinates ? `GPS: ${item.coordinates}` : ""].filter(Boolean).join(" · ") || "Lokasi belum dikirim oleh aplikasi karyawan"}</small></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><small>{item.id}</small></td></tr>)}
+          {attendanceLoading ? <p className="employee-state">Memuat catatan absensi dari Firestore…</p> : <div className="employee-table-wrap"><table className="employee-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Kantor / Lokasi</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>Keterangan Masuk</th></tr></thead><tbody>
+            {attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).map((item) => <tr key={item.id}><td>{formatAttendanceDate(item.date)}</td><td><strong>{item.name}</strong></td><td><strong>{item.office || "Kantor belum tercatat"}</strong><small>{[item.officeAddress, item.coordinates ? `GPS: ${item.coordinates}` : ""].filter(Boolean).join(" · ") || "Lokasi belum dikirim oleh aplikasi karyawan"}</small></td><td>{item.checkIn || "—"}</td><td>{item.checkOut || "—"}</td><td><span className="employee-status">{item.status}</span></td><td><span className="employee-status">{getCheckInLabel(item.checkIn, attendanceSettings.checkInEnd, attendanceSettings.lateToleranceMinutes)}</span></td></tr>)}
           </tbody></table>
           {attendanceRows.length === 0 && !attendanceLoading && <p className="employee-state">Belum ada catatan pada koleksi <code>attendance</code>.</p>}
           {attendanceRows.length > 0 && attendanceRows.filter((item) => (!attendanceDate || item.date === attendanceDate) && [item.name, item.status, item.id, item.office, item.officeAddress, item.coordinates].some((value) => value.toLowerCase().includes(attendanceSearch.toLowerCase().trim()))).length === 0 && <p className="employee-state">Tidak ada catatan absensi yang cocok dengan filter.</p>}
