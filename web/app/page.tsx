@@ -753,7 +753,7 @@ export default function HomePage() {
       setError("Nonaktifkan akun terlebih dahulu sebelum menghapusnya secara permanen.");
       return;
     }
-    const endpoint = process.env.NEXT_PUBLIC_ACCOUNT_DELETE_API;
+    const endpoint = (process.env.NEXT_PUBLIC_ACCOUNT_DELETE_API || "https://absencontrol.mohammadqomarudin18.workers.dev").trim();
     if (!endpoint) {
       setError("Penghapusan otomatis belum aktif. Backend Cloudflare Worker perlu dipasang dan dikonfigurasi terlebih dahulu. Tidak ada data yang dihapus.");
       return;
