@@ -1948,3 +1948,56 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   color:var(--ac-text)!important;
   border-color:var(--ac-border)!important;
 }
+
+
+/* Tambah karyawan: tingkatkan kontras seluruh teks dan kontrol formulir */
+.employee-form,
+.employee-form * {
+  color-scheme: light;
+}
+.employee-form {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #172033;
+}
+.employee-form-heading h4,
+.employee-form-grid label,
+.employee-form label,
+.employee-form-actions {
+  color: #172033;
+}
+.employee-form-heading p,
+.employee-form .muted,
+.employee-form .small-note,
+.employee-form-grid small,
+.employee-form-grid .field-help {
+  color: #475569;
+}
+.employee-form-grid input,
+.employee-form-grid select,
+.employee-form input,
+.employee-form select {
+  background: #ffffff;
+  color: #111827;
+  border-color: #94a3b8;
+}
+.employee-form input::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+.employee-form-grid input:focus,
+.employee-form-grid select:focus,
+.employee-form input:focus,
+.employee-form select:focus {
+  border-color: #315bd0;
+  outline: 2px solid rgba(49, 91, 208, .18);
+  outline-offset: 1px;
+}
+.employee-form button.logout-button {
+  color: #243047;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+.employee-form .primary-button {
+  color: #ffffff;
+}
