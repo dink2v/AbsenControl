@@ -387,7 +387,7 @@ export default function HomePage() {
         const resolveAccountLabel = (value: string) => {
           const normalized = value.trim();
           if (!normalized) return "";
-          return accountLabels.get(normalized) || (normalized.includes("@") ? normalized : "Akun tidak ditemukan");
+          return accountLabels.get(normalized) || (normalized.includes("@") ? normalized : "");
         };
         const readText = (value: unknown): string => {
           if (value == null) return "";
@@ -418,7 +418,7 @@ export default function HomePage() {
                   name: (() => {
                     const storedName = pick(step, ["approverName", "approvedByName", "namaApprover", "namaAtasan", "nama", "name", "displayName", "email"]);
                     const storedUid = pick(step, ["approverUid", "approvedByUid", "uid", "userId", "approvedBy", "approvedById"]);
-                    return resolveAccountLabel(storedName) || resolveAccountLabel(storedUid) || storedName || "";
+                    return resolveAccountLabel(storedName) || resolveAccountLabel(storedUid) || (storedName.includes("@") ? storedName : "") || "Akun tidak ditemukan";
                   })(),
                   uid: "",
                   role: pick(step, ["role", "jabatan", "position", "approverRole"]) || "",
@@ -433,7 +433,7 @@ export default function HomePage() {
             const scalarStatus = pick(data, ["approvalStatus", "approvalDecision", "decision", "approvalAction"]);
             const scalarAt = pick(data, ["approvedAt", "approvalAt", "approved_at", "tanggalPersetujuan", "waktuPersetujuan"]);
             if (scalarApprover || scalarStatus || scalarAt) approvals.push({
-              name: resolveAccountLabel(pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju", "approvedByUid", "approverUid", "approvedById", "approvedBy", "approver"])) || "",
+              name: resolveAccountLabel(pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju", "approvedByUid", "approverUid", "approvedById", "approvedBy", "approver"])) || "Akun tidak ditemukan",
               uid: "",
               role: pick(data, ["approverRole", "jabatanApprover", "approvalRole"]) || "",
               status: scalarStatus || "Tercatat",
@@ -452,7 +452,7 @@ export default function HomePage() {
             endDate: pick(data, ["tanggalSelesai", "selesai", "tanggalAkhir", "endDate", "sampaiTanggal"]),
             reason: pick(data, ["alasan", "keterangan", "deskripsi", "reason", "catatan", "detail", "pesan"]),
             approvals,
-            currentApprover: resolveAccountLabel(pick(data, ["currentApproverName", "currentApproverUid", "currentApprover", "pendingApprover", "approverSaatIni"])) || "—",
+            currentApprover: resolveAccountLabel(pick(data, ["currentApproverName", "currentApproverUid", "currentApprover", "pendingApprover", "approverSaatIni"])) || "Akun tidak ditemukan",
             raw: data,
           } satisfies RequestRecord;
         }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt, "id"));
