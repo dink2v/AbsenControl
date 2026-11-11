@@ -1989,3 +1989,41 @@ button:disabled { opacity: .55; }
 .request-approval-modal-step { background: #17243a !important; border-color: #30415f !important; color: #e7edfb !important; }
 .request-approval-modal-close { background: #42270f !important; color: #ffbd7b !important; }
 hr, .divider { border-color: #263752 !important; }
+
+
+/* Dark-theme correction: remove remaining light header and legacy paper surfaces */
+.topbar {
+  background: #0b1220 !important;
+  background-image: none !important;
+  color: #edf2ff !important;
+  border-bottom: 1px solid #263752 !important;
+  backdrop-filter: none !important;
+}
+.page-heading, .page-heading .eyebrow, .page-heading .eyebrow span,
+.page-description, .topbar h1 {
+  background: transparent !important;
+  color: #dce7ff !important;
+}
+.topbar h1 { color: #7fa7ff !important; }
+.account-copy strong { color: #dce7ff !important; }
+.account-copy span { color: #9aa8c2 !important; }
+.avatar {
+  background: #172f62 !important;
+  border-color: #315db4 !important;
+  color: #dce7ff !important;
+}
+.logout-button {
+  background: #172744 !important;
+  color: #e7edfb !important;
+  border: 1px solid #30415f !important;
+}
+.logout-button:hover { background: #20375d !important; }
+.date-chip {
+  background: #fb8200 !important;
+  color: #fff !important;
+  border-color: #fb8200 !important;
+}
+.dashboard-main, .page-heading, .topbar,
+.dashboard-main > header, .dashboard-main > section {
+  background-color: #0b1220 !important;
+}
