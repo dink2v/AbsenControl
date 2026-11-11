@@ -387,7 +387,13 @@ export default function HomePage() {
         const resolveAccountLabel = (value: string) => {
           const normalized = value.trim();
           if (!normalized) return "";
-          return accountLabels.get(normalized) || (normalized.includes("@") ? normalized : "");
+          const matched = accountLabels.get(normalized) || accountLabels.get(normalized.toLowerCase());
+          if (matched) return matched;
+          if (normalized.includes("@")) return normalized;
+          // UID Firebase biasanya berupa string acak panjang; jangan pernah tampilkan UID mentah.
+          if (/^[A-Za-z0-9_-]{20,}$/.test(normalized)) return "Akun tidak ditemukan";
+          // Nama manusia yang memang tersimpan di riwayat tetap ditampilkan.
+          return normalized;
         };
         const readText = (value: unknown): string => {
           if (value == null) return "";
@@ -411,14 +417,14 @@ export default function HomePage() {
           const approvalSource = approvalArrayKeys.map((key) => data[key]).find(Array.isArray);
           const approvals: ApprovalDetail[] = Array.isArray(approvalSource)
             ? approvalSource.map((entry) => {
-                if (typeof entry === "string") { const label = resolveAccountLabel(entry) || (entry.includes("@") ? entry : (/^[A-Za-z0-9_-]{20,}$/.test(entry) ? "Akun tidak ditemukan" : entry)); return { name: label, uid: "", role: "", status: "", at: "", note: "" }; }
+                if (typeof entry === "string") { const label = resolveAccountLabel(entry) || "Akun tidak ditemukan"; return { name: label, uid: "", role: "", status: "", at: "", note: "" }; }
                 if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
                 const step = entry as Record<string, unknown>;
                 return {
                   name: (() => {
                     const storedName = pick(step, ["approverName", "approvedByName", "namaApprover", "namaAtasan", "nama", "name", "displayName", "email"]);
                     const storedUid = pick(step, ["approverUid", "approvedByUid", "uid", "userId", "approvedBy", "approvedById"]);
-                    return resolveAccountLabel(storedName) || resolveAccountLabel(storedUid) || (storedName.includes("@") ? storedName : "") || "Akun tidak ditemukan";
+                    return (storedName ? resolveAccountLabel(storedName) : "") || (storedUid ? resolveAccountLabel(storedUid) : "") || "Akun tidak ditemukan";
                   })(),
                   uid: "",
                   role: pick(step, ["role", "jabatan", "position", "approverRole"]) || "",
@@ -433,7 +439,7 @@ export default function HomePage() {
             const scalarStatus = pick(data, ["approvalStatus", "approvalDecision", "decision", "approvalAction"]);
             const scalarAt = pick(data, ["approvedAt", "approvalAt", "approved_at", "tanggalPersetujuan", "waktuPersetujuan"]);
             if (scalarApprover || scalarStatus || scalarAt) approvals.push({
-              name: resolveAccountLabel(pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju", "approvedByUid", "approverUid", "approvedById", "approvedBy", "approver"])) || "Akun tidak ditemukan",
+              name: resolveAccountLabel(pick(data, ["approvedByName", "approverName", "namaApprover", "namaPenyetuju", "approvedBy", "approver", "approvedByUid", "approverUid", "approvedById"])) || "Akun tidak ditemukan",
               uid: "",
               role: pick(data, ["approverRole", "jabatanApprover", "approvalRole"]) || "",
               status: scalarStatus || "Tercatat",
@@ -452,7 +458,7 @@ export default function HomePage() {
             endDate: pick(data, ["tanggalSelesai", "selesai", "tanggalAkhir", "endDate", "sampaiTanggal"]),
             reason: pick(data, ["alasan", "keterangan", "deskripsi", "reason", "catatan", "detail", "pesan"]),
             approvals,
-            currentApprover: resolveAccountLabel(pick(data, ["currentApproverName", "currentApproverUid", "currentApprover", "pendingApprover", "approverSaatIni"])) || "Akun tidak ditemukan",
+            currentApprover: resolveAccountLabel(pick(data, ["currentApproverName", "currentApprover", "pendingApprover", "approverSaatIni", "currentApproverUid"])) || "—",
             raw: data,
           } satisfies RequestRecord;
         }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt, "id"));
@@ -1174,7 +1180,7 @@ export default function HomePage() {
               <div className="request-approval-modal-footer"><span>Approver saat ini: <strong>{selectedApprovalRequest.currentApprover || "—"}</strong></span><button type="button" className="primary-button" onClick={() => setSelectedApprovalRequest(null)}>Tutup</button></div>
             </section>
           </div>}
-          <p className="small-note">Riwayat persetujuan dibaca dari field approvalChain, approvals, approvalHistory, atau field approver yang tersedia pada dokumen. Jika nama atau waktu persetujuan tidak tersimpan di Firestore, panel menampilkan UID atau keterangan bahwa detail belum tercatat—tidak membuat data persetujuan sendiri. Halaman ini tetap bersifat baca-saja.</p>
+          <p className="small-note">Semua identitas pada riwayat persetujuan ditampilkan sebagai nama (email menjadi fallback jika nama tidak tersedia). UID atau ID akun tidak ditampilkan; jika akun tidak dapat dicocokkan dengan koleksi users, panel menampilkan “Akun tidak ditemukan”. Halaman ini tetap bersifat baca-saja.</p>
         </section> : activeSection === "Dashboard" ? <>
         <section className="summary-grid" aria-label="Ringkasan">
           <article className="summary-card"><div className="summary-top"><span>Total Karyawan</span><span className="summary-icon blue">♙</span></div><strong>{stats.employees}</strong><p>{statsLoading ? "Memuat data karyawan…" : "Data dari Firestore"}</p></article>
