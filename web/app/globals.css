@@ -2472,3 +2472,86 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   color: #f2f6ff !important;
   border: 0 !important;
 }
+
+
+/* Sistem tata letak tombol yang konsisten di seluruh panel */
+.dashboard-layout button:not(.nav-item) {
+  font-family: var(--type-body);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.dashboard-layout .primary-button,
+.dashboard-layout .logout-button,
+.dashboard-layout .secondary-button,
+.dashboard-layout .settings-action-button,
+.dashboard-layout .request-approval-detail-button,
+.dashboard-layout .employee-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  width: auto;
+  margin: 0;
+  padding: 9px 14px;
+  border-radius: 9px;
+  text-align: center;
+  white-space: normal;
+  vertical-align: middle;
+}
+.dashboard-layout .primary-button {
+  min-height: 40px;
+  padding: 10px 16px;
+  box-shadow: 0 5px 14px #00000024;
+}
+.dashboard-layout .primary-button:hover:not(:disabled),
+.dashboard-layout .logout-button:hover:not(:disabled),
+.dashboard-layout .secondary-button:hover:not(:disabled),
+.dashboard-layout .settings-action-button:hover:not(:disabled),
+.dashboard-layout .request-approval-detail-button:hover:not(:disabled),
+.dashboard-layout .employee-delete-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.dashboard-layout button:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.dashboard-layout :is(.employee-heading-actions,.employee-row-actions,.employee-form-actions,
+  .employee-form-heading,.topbar-actions,.account-actions,.request-toolbar,
+  .request-approval-actions,.complaint-inbox-heading,.complaint-reply-form,
+  .settings-action-card,.settings-action-grid) {
+  gap: 10px;
+}
+.dashboard-layout :is(.employee-heading-actions,.employee-row-actions,.employee-form-actions,
+  .employee-form-heading,.request-toolbar,.request-approval-actions) {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.dashboard-layout .employee-heading-actions .module-count { margin-right: 2px; }
+.dashboard-layout .employee-row-actions button { min-width: 76px; }
+.dashboard-layout .employee-form-actions { justify-content: flex-end; }
+.dashboard-layout .complaint-inbox-heading .logout-button { min-height: 34px; padding: 7px 11px; }
+.dashboard-layout .complaint-reply-form .primary-button { min-width: 132px; }
+.dashboard-layout :is(.employee-toolbar,.attendance-toolbar) .logout-button,
+.dashboard-layout .request-toolbar .logout-button { min-height: 40px; }
+.dashboard-layout button:focus-visible {
+  outline: 2px solid #80aaff;
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .dashboard-layout :is(.employee-heading-actions,.employee-row-actions,.employee-form-actions,
+    .request-toolbar,.request-approval-actions) { gap: 8px; }
+  .dashboard-layout .employee-heading-actions .primary-button { min-height: 40px; }
+  .dashboard-layout .employee-row-actions button { min-width: 0; padding: 8px 10px; }
+}
+@media (max-width: 520px) {
+  .dashboard-layout .employee-form-actions { align-items: stretch; }
+  .dashboard-layout .employee-form-actions button { width: 100%; }
+  .dashboard-layout .employee-heading-actions { width: 100%; }
+  .dashboard-layout .employee-heading-actions button { max-width: 100%; }
+  .dashboard-layout .complaint-reply-form .primary-button { width: 100%; }
+}
