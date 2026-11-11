@@ -1826,3 +1826,49 @@ input:focus,select:focus,textarea:focus { border-color:#3974ff!important; box-sh
 .request-approval-modal-close { background:#42270f!important; color:#ffbd7b!important; }
 hr,.divider,.complaint-inbox-heading,.complaint-chat-header,.complaint-reply-form { border-color:var(--ac-border)!important; }
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline-color:#0044dd88!important; }
+
+
+/* ABSEN CONTROL — remove remaining light surfaces across every web section */
+.login-layout,.login-panel,.setup-card,.main-card,
+.summary-card,.content-card,.access-card,
+.employee-form,.employee-form-card,.employee-table-wrap,.request-table-wrap,
+.organization-department,.organization-team,.organization-summary article,
+.request-summary article,.settings-account-card,.settings-option,
+.settings-action-card,.settings-panel,.request-card,.attendance-card,
+.report-card,.request-toolbar,.requests-panel .employee-state,
+.requests-panel .small-note,.complaints-panel>.small-note,
+.complaint-inbox-heading,.complaint-chat-header,.complaint-reply-form,
+.request-approval-modal,.request-approval-modal-step,
+.request-approval-detail-button,.employee-toolbar,
+.attendance-tabs,.attendance-tab.active {
+  background-color:var(--ac-panel)!important;
+  color:var(--ac-text)!important;
+  border-color:var(--ac-border)!important;
+}
+.request-summary article:nth-child(n),
+.report-summary article:nth-child(n),
+.organization-summary article:nth-child(n) {
+  background:var(--ac-panel)!important;
+  border-color:var(--ac-border)!important;
+}
+.employee-form-grid input,.employee-form-grid select,
+.employee-toolbar input,.employee-toolbar select,
+.request-toolbar input,.request-toolbar select,
+.attendance-date-label input,.login-form input,
+.complaint-reply-form textarea {
+  background:#0d182b!important;color:var(--ac-text)!important;
+  border-color:var(--ac-border)!important;
+}
+.request-approval-step,.request-approval-modal-step,
+.request-approval-detail-button,.settings-chip,.module-count {
+  background:var(--ac-raised)!important;color:var(--ac-text)!important;
+  border-color:var(--ac-border)!important;
+}
+.employee-table thead,.employee-table th,.request-table th,
+.request-table thead,table thead th {
+  background:var(--ac-raised)!important;color:#c5d4ee!important;
+}
+.employee-table tbody tr:hover,.request-table tbody tr:hover,
+.employee-table tbody tr:hover td,.request-table tbody tr:hover td {
+  background:#172744!important;
+}
