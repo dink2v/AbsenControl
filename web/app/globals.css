@@ -2407,3 +2407,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   background: #1b2c48 !important;
   color: #c7d6ed !important;
 }
+
+/* Chat Pengaduan: hilangkan garis pada kartu pembungkus dan state hover */
+.complaints-panel,
+.complaints-panel:hover,
+.dashboard-layout .complaints-panel,
+.dashboard-layout .complaints-panel:hover {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+.complaints-panel::before,
+.complaints-panel::after {
+  content: none !important;
+  display: none !important;
+}
