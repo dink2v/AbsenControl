@@ -1890,3 +1890,61 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .request-approval-modal-heading,.request-approval-modal-footer{border-color:var(--ac-border)!important;color:var(--ac-muted)!important}
 .request-approval-modal-heading h3,.request-approval-modal-step-top strong,.request-approval-modal-footer strong{color:var(--ac-text)!important}
 .request-approval-modal-heading p,.request-approval-modal-step p{color:var(--ac-muted)!important}
+
+
+/* Pengajuan: enforce readable text contrast on every nested element. */
+.requests-panel,
+.requests-panel .section-heading h3,
+.requests-panel .section-heading p,
+.requests-panel .request-summary,
+.requests-panel .request-summary article,
+.requests-panel .request-summary article span,
+.requests-panel .request-summary article strong,
+.requests-panel .request-toolbar,
+.requests-panel .request-toolbar input,
+.requests-panel .request-toolbar select,
+.requests-panel .request-toolbar button,
+.requests-panel .employee-state,
+.requests-panel .employee-table,
+.requests-panel .employee-table th,
+.requests-panel .employee-table td,
+.requests-panel .employee-table td strong,
+.requests-panel .employee-table td small,
+.requests-panel .request-reason,
+.requests-panel .employee-status,
+.requests-panel .request-approval-detail-button,
+.requests-panel > .small-note {
+  color:var(--ac-text)!important;
+}
+.requests-panel .request-summary article span,
+.requests-panel .section-heading p,
+.requests-panel .employee-table td small,
+.requests-panel > .small-note { color:var(--ac-muted)!important; }
+.requests-panel .request-summary article,
+.requests-panel .request-toolbar,
+.requests-panel .request-approval-detail-button {
+  background:var(--ac-panel)!important;
+  border-color:var(--ac-border)!important;
+}
+.requests-panel .request-toolbar input,
+.requests-panel .request-toolbar select {
+  background:#0d182b!important;
+  color:var(--ac-text)!important;
+  border-color:#30415f!important;
+}
+.requests-panel .request-toolbar input::placeholder { color:#9aa8c2!important; opacity:1; }
+.requests-panel .request-approval-detail-button:hover {
+  background:#1b2d4b!important;
+  border-color:#3974ff!important;
+}
+.requests-panel .employee-status {
+  background:#123b32!important;
+  color:#8aebc8!important;
+  border-color:#23634f!important;
+}
+.requests-panel .request-approval-modal,
+.requests-panel .request-approval-modal-step {
+  background:var(--ac-panel)!important;
+  color:var(--ac-text)!important;
+  border-color:var(--ac-border)!important;
+}
