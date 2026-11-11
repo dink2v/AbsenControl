@@ -84,7 +84,7 @@ export default function HomePage() {
   const [attendanceRows, setAttendanceRows] = useState<{id:string;name:string;date:string;checkIn:string;checkOut:string;status:string;office:string;officeAddress:string;coordinates:string}[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSearch, setAttendanceSearch] = useState("");
-  const [attendanceDate, setAttendanceDate] = useState("");
+  const [attendanceDate, setAttendanceDate] = useState(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
   const [attendanceLoaded, setAttendanceLoaded] = useState(false);
   const [attendanceLoadedKey, setAttendanceLoadedKey] = useState(-1);
   const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
