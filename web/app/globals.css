@@ -2243,3 +2243,167 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .role-pill {
   border: 1px solid #23634f !important;
 }
+
+/* Dashboard: pulihkan kontras teks pada seluruh ringkasan dan kartu utama */
+.dashboard-layout:has(.summary-grid) .summary-top,
+.dashboard-layout:has(.summary-grid) .summary-top > span:first-child {
+  color: #bdcbe2 !important;
+}
+.dashboard-layout:has(.summary-grid) .summary-card > strong {
+  color: #f0f5ff !important;
+}
+.dashboard-layout:has(.summary-grid) .summary-card > p,
+.dashboard-layout:has(.summary-grid) .module-tile > span:nth-last-child(2),
+.dashboard-layout:has(.summary-grid) .access-card > .muted,
+.dashboard-layout:has(.summary-grid) .access-card > .small-note {
+  color: #aab9d1 !important;
+}
+.dashboard-layout:has(.summary-grid) .section-heading h3,
+.dashboard-layout:has(.summary-grid) .module-tile strong,
+.dashboard-layout:has(.summary-grid) .access-card h4 {
+  color: #e7eefb !important;
+}
+.dashboard-layout:has(.summary-grid) .module-count {
+  background: #1b2c48 !important;
+  color: #c2d0e6 !important;
+  border: 0 !important;
+}
+.dashboard-layout:has(.summary-grid) .access-divider {
+  background: #30415f !important;
+}
+.dashboard-layout:has(.summary-grid) .dashboard-footer,
+.dashboard-layout:has(.summary-grid) .dashboard-footer span {
+  color: #8293af !important;
+}
+.dashboard-layout:has(.summary-grid) .role-pill {
+  background: #123b32 !important;
+  color: #8aebc8 !important;
+  border: 0 !important;
+}
+
+/* Chat Pengaduan: hilangkan garis tepi dan pemisah yang tersisa */
+.complaints-panel .complaint-inbox,
+.complaints-panel .complaint-chat,
+.complaints-panel .complaint-inbox-heading,
+.complaints-panel .complaint-chat-header,
+.complaints-panel .complaint-thread,
+.complaints-panel .chat-bubble,
+.complaints-panel .complaint-reply-form,
+.complaints-panel .complaint-reply-form textarea {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+.complaints-panel .complaint-inbox-heading,
+.complaints-panel .complaint-chat-header,
+.complaints-panel .complaint-reply-form {
+  border-bottom: 0 !important;
+  border-top: 0 !important;
+}
+.complaints-panel .complaint-thread {
+  border-bottom: 0 !important;
+}
+.complaints-panel .complaint-thread.selected {
+  box-shadow: none !important;
+}
+.complaints-panel .complaint-messages {
+  border: 0 !important;
+}
+.complaints-panel .chat-bubble,
+.complaints-panel .chat-bubble.admin-message {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Pengaturan: atur ulang warna teks berdasarkan tingkat informasi */
+.settings-panel,
+.settings-panel .settings-section-title h4,
+.settings-panel .settings-account-info strong,
+.settings-panel .settings-action-card strong,
+.settings-panel .settings-option strong,
+.settings-panel .attendance-settings-form label,
+.settings-panel .attendance-settings-toggle strong {
+  color: #e5edf9 !important;
+}
+.settings-panel .settings-hero h3 {
+  color: #ffffff !important;
+}
+.settings-panel .settings-hero p,
+.settings-panel .settings-eyebrow {
+  color: #c3d1e7 !important;
+}
+.settings-panel .settings-section-title p,
+.settings-panel .settings-account-info span,
+.settings-panel .settings-account-info small,
+.settings-panel .settings-action-card p,
+.settings-panel .settings-option p,
+.settings-panel .attendance-settings-toggle small,
+.settings-panel .attendance-settings-form .small-note,
+.settings-panel .settings-option-arrow {
+  color: #a5b4cc !important;
+}
+.settings-panel .settings-account-card,
+.settings-panel .settings-action-card,
+.settings-panel .settings-option,
+.settings-panel .attendance-settings-toggle {
+  background: #111c30 !important;
+  border-color: #263752 !important;
+}
+.settings-panel .settings-account-avatar,
+.settings-panel .settings-option-icon,
+.settings-panel .settings-action-icon {
+  background: #1b3157 !important;
+  color: #c2d5ff !important;
+  border: 0 !important;
+}
+.settings-panel .settings-role,
+.settings-panel .settings-chip {
+  background: #1b2c48 !important;
+  color: #c7d6ed !important;
+  border: 0 !important;
+}
+.settings-panel .settings-status {
+  background: #123b32 !important;
+  color: #8aebc8 !important;
+  border: 0 !important;
+}
+.settings-panel .settings-feedback {
+  background: #12352f !important;
+  color: #a4ebce !important;
+  border: 0 !important;
+}
+.settings-panel .settings-feedback * {
+  color: inherit !important;
+}
+.settings-panel .settings-notice {
+  background: #33230f !important;
+  color: #ffcf91 !important;
+  border: 0 !important;
+}
+.settings-panel .settings-notice p {
+  color: #e8bd82 !important;
+}
+.settings-panel .attendance-settings-grid label {
+  color: #dce6f5 !important;
+}
+.settings-panel .attendance-settings-grid input {
+  background: #0d182b !important;
+  color: #edf2ff !important;
+  border-color: #30415f !important;
+}
+.settings-panel .attendance-settings-grid input:disabled {
+  color: #91a0b9 !important;
+  background: #17243a !important;
+}
+.settings-panel .attendance-settings-toggle {
+  color: #e5edf9 !important;
+}
+.settings-panel .settings-action-button.secondary {
+  background: #263752 !important;
+  color: #e5edf9 !important;
+  border: 0 !important;
+}
+.settings-panel code {
+  background: #1b2c48 !important;
+  color: #c7d6ed !important;
+}
