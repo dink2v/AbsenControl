@@ -411,7 +411,7 @@ export default function HomePage() {
           const approvalSource = approvalArrayKeys.map((key) => data[key]).find(Array.isArray);
           const approvals: ApprovalDetail[] = Array.isArray(approvalSource)
             ? approvalSource.map((entry) => {
-                if (typeof entry === "string") return { name: entry, uid: "", role: "", status: "", at: "", note: "" };
+                if (typeof entry === "string") { const label = resolveAccountLabel(entry) || (entry.includes("@") ? entry : (/^[A-Za-z0-9_-]{20,}$/.test(entry) ? "Akun tidak ditemukan" : entry)); return { name: label, uid: "", role: "", status: "", at: "", note: "" }; }
                 if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
                 const step = entry as Record<string, unknown>;
                 return {
