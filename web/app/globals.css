@@ -2059,78 +2059,135 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   color: #ffffff !important;
 }
 
-/* Dashboard typography system: consistent font, scale, and readable hierarchy */
+/* Dashboard typography system: satu skala konsisten untuk seluruh modul */
 .dashboard-layout {
-  font-family: "DM Sans", sans-serif;
-  font-size: 13px;
+  --type-body: "DM Sans", sans-serif;
+  --type-display: "Manrope", sans-serif;
+  --type-xs: 10px;
+  --type-sm: 11px;
+  --type-base: 13px;
+  --type-md: 14px;
+  --type-lg: 17px;
+  --type-xl: 23px;
+  --type-display-size: 28px;
+  font-family: var(--type-body);
+  font-size: var(--type-base);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-.dashboard-layout :is(h1,h2,h3,h4,.summary-card > strong,.organization-summary strong) {
-  font-family: "Manrope", sans-serif;
+
+/* Judul dan angka utama */
+.dashboard-layout :is(h1,h2,h3,h4,.summary-card > strong,.organization-summary strong,.report-summary strong) {
+  font-family: var(--type-display);
   line-height: 1.25;
-  letter-spacing: -0.025em;
+  letter-spacing: -.025em;
 }
-.dashboard-layout .brand-lockup { font-family: "Manrope", sans-serif; }
-.dashboard-layout .nav-caption,
-.dashboard-layout .workspace-label,
-.dashboard-layout .eyebrow,
-.dashboard-layout .welcome-kicker {
-  font-size: 10px;
+.dashboard-layout :is(.topbar h1,.welcome-row h2,.section-heading h3,.settings-hero h3,.settings-section-title h4) {
+  font-weight: 800;
+}
+.dashboard-layout .topbar h1 { font-size: 27px; line-height: 1.2; }
+.dashboard-layout .welcome-row h2 { font-size: var(--type-xl); line-height: 1.25; }
+.dashboard-layout .section-heading h3 { font-size: var(--type-lg); line-height: 1.3; }
+.dashboard-layout :is(.organization-department-title h4,.complaint-chat-header h4,.settings-section-title h4) {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.dashboard-layout .settings-hero h3 { font-size: 23px; }
+
+/* Navigasi, identitas, dan teks pendamping */
+.dashboard-layout .brand-lockup { font-family: var(--type-display); }
+.dashboard-layout :is(.nav-caption,.workspace-label,.eyebrow,.welcome-kicker) {
+  font-size: var(--type-xs);
   line-height: 1.4;
   letter-spacing: .12em;
 }
-.dashboard-layout .workspace-name { font-size: 13px; line-height: 1.45; }
-.dashboard-layout .nav-item { font-size: 13px; font-weight: 500; line-height: 1.35; }
+.dashboard-layout .welcome-kicker { font-weight: 700; }
+.dashboard-layout .workspace-name,
+.dashboard-layout .nav-item { font-size: var(--type-base); line-height: 1.45; }
+.dashboard-layout .nav-item { font-weight: 500; }
 .dashboard-layout .nav-item.active { font-weight: 700; }
-.dashboard-layout .sidebar-bottom { font-size: 11px; }
-.dashboard-layout .topbar h1 { font-size: 27px; line-height: 1.2; font-weight: 800; }
-.dashboard-layout .page-description { font-size: 13px; line-height: 1.55; }
+.dashboard-layout .sidebar-bottom { font-size: var(--type-sm); }
 .dashboard-layout .account-copy strong { font-size: 12px; line-height: 1.35; }
-.dashboard-layout .account-copy span { font-size: 11px; line-height: 1.4; }
+.dashboard-layout .account-copy span { font-size: var(--type-sm); line-height: 1.4; }
+.dashboard-layout .page-description,
+.dashboard-layout .welcome-row p { font-size: var(--type-base); line-height: 1.6; }
 .dashboard-layout .logout-button,
 .dashboard-layout .secondary-button,
-.dashboard-layout .primary-button { font-size: 12px; font-weight: 700; }
-.dashboard-layout .welcome-kicker { font-weight: 700; }
-.dashboard-layout .welcome-row h2 { font-size: 23px; line-height: 1.25; font-weight: 800; }
-.dashboard-layout .welcome-row p { font-size: 13px; line-height: 1.6; }
-.dashboard-layout .date-chip-label { font-size: 9px; line-height: 1.35; letter-spacing: .12em; font-weight: 700; }
-.dashboard-layout .date-chip strong { font-size: 13px; line-height: 1.4; font-weight: 700; }
+.dashboard-layout .primary-button,
+.dashboard-layout .settings-action-button { font-family: var(--type-body); font-size: 12px; font-weight: 700; }
+
+/* Statistik dan kartu ringkasan */
 .dashboard-layout .summary-top { font-size: 12px; line-height: 1.45; font-weight: 600; }
 .dashboard-layout .summary-card > strong { font-size: 30px; line-height: 1.15; font-weight: 800; }
-.dashboard-layout .summary-card > p { font-size: 11px; line-height: 1.5; }
-.dashboard-layout .section-heading h3 { font-size: 17px; line-height: 1.3; font-weight: 800; }
-.dashboard-layout .section-heading p { font-size: 12px; line-height: 1.55; }
-.dashboard-layout .module-count,
-.dashboard-layout .settings-chip { font-size: 10px; line-height: 1.4; font-weight: 600; }
-.dashboard-layout .module-tile strong { font-size: 13px; line-height: 1.4; }
-.dashboard-layout .module-tile > span:nth-last-child(2) { font-size: 11px; line-height: 1.55; }
-.dashboard-layout .small-note,
-.dashboard-layout .employee-state { font-size: 11px; line-height: 1.65; }
+.dashboard-layout .summary-card > p { font-size: var(--type-sm); line-height: 1.5; }
+.dashboard-layout :is(.organization-summary article span,.request-summary article span,.report-summary article span) {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.dashboard-layout :is(.organization-summary strong,.request-summary article strong) { font-size: 24px; line-height: 1.2; }
+.dashboard-layout .report-summary article strong { font-size: 28px; line-height: 1.2; }
+.dashboard-layout :is(.report-summary article small,.request-table td small) { font-size: var(--type-xs); line-height: 1.5; }
+
+/* Modul, label, badge, dan keterangan */
+.dashboard-layout .section-heading p,
+.dashboard-layout .settings-hero p { font-size: 12px; line-height: 1.55; }
+.dashboard-layout :is(.module-count,.settings-chip,.role-pill,.employee-status,.organization-member-status) {
+  font-size: var(--type-xs);
+  line-height: 1.4;
+  font-weight: 600;
+}
+.dashboard-layout .module-tile strong { font-size: var(--type-base); line-height: 1.4; }
+.dashboard-layout .module-tile > span:nth-last-child(2) { font-size: var(--type-sm); line-height: 1.55; }
+.dashboard-layout :is(.small-note,.employee-state,.organization-empty,.muted) { font-size: var(--type-sm); line-height: 1.65; }
+.dashboard-layout .date-chip-label { font-size: 9px; line-height: 1.35; letter-spacing: .12em; font-weight: 700; }
+.dashboard-layout .date-chip strong { font-size: var(--type-base); line-height: 1.4; font-weight: 700; }
+
+/* Tabel dan data */
+.dashboard-layout :is(.employee-table,.request-table,table) { font-family: var(--type-body); }
 .dashboard-layout .employee-table { font-size: 12px; line-height: 1.5; }
-.dashboard-layout .employee-table th,
-.dashboard-layout .request-table th,
-.dashboard-layout table thead th { font-size: 11px; line-height: 1.4; font-weight: 700; }
-.dashboard-layout .employee-table td { font-size: 12px; line-height: 1.5; }
+.dashboard-layout :is(.employee-table th,.request-table th,table thead th) {
+  font-size: var(--type-sm);
+  line-height: 1.4;
+  font-weight: 700;
+}
+.dashboard-layout :is(.employee-table td,.request-table td) { font-size: 12px; line-height: 1.5; }
+.dashboard-layout .employee-table td strong { font-size: 12px; line-height: 1.4; }
+.dashboard-layout .employee-table td small { font-size: var(--type-xs); line-height: 1.45; }
+
+/* Formulir dan kontrol */
 .dashboard-layout :is(label,.employee-form label,.settings-option strong,.organization-member strong) {
   font-size: 12px;
   line-height: 1.45;
 }
-.dashboard-layout :is(input,select,textarea) { font-family: "DM Sans", sans-serif; font-size: 13px; line-height: 1.45; }
-.dashboard-layout :is(button,a) { font-family: "DM Sans", sans-serif; }
-.dashboard-layout .organization-department-title h4,
-.dashboard-layout .complaint-chat-header h4 { font-size: 15px; line-height: 1.35; }
-.dashboard-layout .organization-department-title p,
-.dashboard-layout .organization-supervisor small,
-.dashboard-layout .organization-member small { font-size: 11px; line-height: 1.5; }
+.dashboard-layout :is(input,select,textarea) {
+  font-family: var(--type-body);
+  font-size: var(--type-base);
+  line-height: 1.45;
+}
+.dashboard-layout :is(button,a) { font-family: var(--type-body); }
+.dashboard-layout :is(.employee-form-heading p,.employee-form-grid small,.employee-form-grid .field-help,.organization-department-title p,.organization-supervisor small,.organization-member small) {
+  font-size: var(--type-sm);
+  line-height: 1.5;
+}
+
+/* Pengajuan, persetujuan, dan percakapan */
+.dashboard-layout :is(.request-reason,.request-approval-modal,.request-approval-modal-step,.complaint-thread-copy,.complaint-reply-form) {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.dashboard-layout :is(.complaint-chat-header,.complaint-inbox-heading) { font-size: 13px; line-height: 1.45; }
+.dashboard-layout .complaint-status { font-size: var(--type-xs); }
+
+/* Penyesuaian layar kecil: skala tetap terbaca tanpa mengubah layout */
 @media (max-width: 700px) {
   .dashboard-layout .topbar h1 { font-size: 23px; }
-  .dashboard-layout .page-description { font-size: 12px; }
-  .dashboard-layout .welcome-row h2 { font-size: 21px; }
+  .dashboard-layout .page-description,
   .dashboard-layout .welcome-row p { font-size: 12px; }
+  .dashboard-layout .welcome-row h2 { font-size: 21px; }
   .dashboard-layout .section-heading h3 { font-size: 16px; }
-  .dashboard-layout .section-heading p { font-size: 11px; }
+  .dashboard-layout .section-heading p { font-size: var(--type-sm); }
   .dashboard-layout .summary-card > strong { font-size: 27px; }
-  .dashboard-layout .employee-table td { font-size: 11px; }
+  .dashboard-layout :is(.employee-table td,.request-table td) { font-size: 11px; }
+  .dashboard-layout .module-tile strong { font-size: 12px; }
 }
