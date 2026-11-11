@@ -1872,3 +1872,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .employee-table tbody tr:hover td,.request-table tbody tr:hover td {
   background:#172744!important;
 }
+
+
+/* Final audit: close remaining light-surface gaps without changing white text. */
+.secure-dot,.online-indicator{background:#31bd8a!important;box-shadow:0 0 0 3px #31bd8a20!important}
+.organization-member-status,.settings-role{background:var(--ac-raised)!important;color:#c5d4ee!important;border-color:var(--ac-border)!important}
+.settings-account-avatar,.login-brand-mark{background:#193568!important;color:#dce7ff!important}
+.settings-notice{background:#33230f!important;color:#ffbd7b!important;border-color:#704214!important}
+.settings-notice p{color:#e8bd82!important}
+.login-page,.login-card{background:var(--ac-panel)!important;color:var(--ac-text)!important;border-color:var(--ac-border)!important}
+.sidebar-workspace{background:var(--ac-panel)!important;color:var(--ac-text)!important;border-color:var(--ac-border)!important}
+.employee-delete-button{background:#3b1b24!important;color:#ffb7bd!important;border-color:#71313e!important}
+.employee-delete-button:hover{background:#55212c!important}
+.complaint-messages{background:linear-gradient(180deg,#0d182b,#101c31)!important;color:var(--ac-text)!important}
+.complaint-empty>span{background:var(--ac-raised)!important;color:#c5d4ee!important}
+.request-approval-modal-backdrop{background:rgba(3,8,18,.76)!important}
+.request-approval-modal-heading,.request-approval-modal-footer{border-color:var(--ac-border)!important;color:var(--ac-muted)!important}
+.request-approval-modal-heading h3,.request-approval-modal-step-top strong,.request-approval-modal-footer strong{color:var(--ac-text)!important}
+.request-approval-modal-heading p,.request-approval-modal-step p{color:var(--ac-muted)!important}
